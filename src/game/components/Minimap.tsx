@@ -137,14 +137,16 @@ function renderMinimap(ctx: CanvasRenderingContext2D, m: MinimapData | null) {
   }
 
   // boss half-circle awareness (Normal/LookingBack/Attacked)
+  // Detection is always in the boss's FRONT hemisphere (where boss faces).
+  // Minimap arc direction = bfacing (front).
   if (m.halfRange && m.halfRange > 0) {
     const bx = w2c(m.bx);
     const by = w2c(m.bz);
     const rPx = (m.halfRange / (WORLD.half * 2)) * (SIZE - 2 * PADDING);
-    // awareness direction = opposite of facing
-    const awX = Math.sin(m.bfacing + Math.PI);
-    const awY = Math.cos(m.bfacing + Math.PI);
-    const awAng = Math.atan2(awY, awX);
+    // awareness direction = boss forward = bfacing
+    const awDirX = Math.sin(m.bfacing);
+    const awDirY = Math.cos(m.bfacing);
+    const awCanvasAng = Math.atan2(awDirY, awDirX);
     // color by state
     let color = "rgba(251, 191, 36, 0.25)";
     if (m.bossState === "LookingBack") color = "rgba(249, 115, 22, 0.35)";
@@ -152,7 +154,7 @@ function renderMinimap(ctx: CanvasRenderingContext2D, m: MinimapData | null) {
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.moveTo(bx, by);
-    ctx.arc(bx, by, rPx, awAng - Math.PI / 2, awAng + Math.PI / 2);
+    ctx.arc(bx, by, rPx, awCanvasAng - Math.PI / 2, awCanvasAng + Math.PI / 2);
     ctx.closePath();
     ctx.fill();
   }

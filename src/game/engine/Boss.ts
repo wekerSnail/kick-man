@@ -382,11 +382,10 @@ export class Boss {
     // Half-circle faces +Z in local space (awareness hemisphere).
     // Boss local +Z is the player-area side. But boss rotates with this.group.rotation.y = this.facingY.
     // We want the cone to point in the "awareness" direction = opposite of facing.
-    // For Normal: boss faces -Z (facingY=π), awareness = +Z. The half-disc already faces +Z in local. Good.
-    // For LookingBack/Attacked observe: boss turns to face +Z (facingY=0), awareness = -Z. Need to flip cone.
-    // Simplest: rotate the half-disc to always face the awareness direction (opposite of facingY).
-    const awarenessAng = this.facingY + Math.PI; // opposite of facing
-    this.visionHalfCircle.rotation.y = awarenessAng;
+    // The half-disc visual shows the boss's FRONT detection hemisphere (where boss faces).
+    // Detection is always in front (halfCircleDetect/lookingDetect/attackedDetect all use front dot check).
+    // So the visual should always face the same direction as the boss's forward = facingY.
+    this.visionHalfCircle.rotation.y = this.facingY;
     this.visionPatrolCone.rotation.y = this.facingY; // patrol cone faces forward (where boss looks)
 
     switch (this.state) {
@@ -1428,10 +1427,17 @@ export class Boss {
     // enraged boss detects anywhere on the map (full-map detection)
     const range = this.enraged ? 99 : this.halfRangeBase;
     if (dist > range) return;
-    // half-circle toward +Z (player area). Normal boss faces -Z; the "awareness" is the back hemisphere (+Z)
-    // i.e., player z > boss z (in front of awareness)
+    // Direction check: detection is always in the boss's FRONT hemisphere.
+    // Boss forward = (sin(facingY), 0, cos(facingY)). Player must be in front (dot > 0).
+    // Normal: boss faces -Z (facingY=π), front = -Z. Player sneaks from +Z (behind) = safe.
+    // LookingBack/Attacked: boss faces +Z (facingY=0), front = +Z. Player in +Z = detected.
     // enraged boss detects in all directions
-    if (!this.enraged && dz < 0.2) return; // only +Z hemisphere
+    if (!this.enraged) {
+      const fwdX = Math.sin(this.facingY);
+      const fwdZ = Math.cos(this.facingY);
+      const dot = (dx * fwdX + dz * fwdZ) / Math.max(0.001, dist);
+      if (dot < 0.2) return; // player must be clearly in front hemisphere
+    }
     // check exemptions
     if (ctx.playerInvisible) return;
     if (ctx.playerObscuredBySmoke) return;
@@ -1505,10 +1511,12 @@ export class Boss {
     const dz = ctx.playerPos.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > range) return;
-    // direction check: boss faces +Z (facingY ≈ 0) during LookingBack.
-    // Only detect player in the front hemisphere (player z > boss z, i.e. dz > 0).
-    // This prevents detecting players behind the boss (at -Z / desk side).
-    if (dz < 0.3) return; // player must be clearly in front (+Z hemisphere)
+    // Direction check: detection is always in the boss's FRONT hemisphere.
+    // During LookingBack, boss faces +Z (facingY≈0). Player in +Z (front) = detected.
+    const fwdX = Math.sin(this.facingY);
+    const fwdZ = Math.cos(this.facingY);
+    const dot = (dx * fwdX + dz * fwdZ) / Math.max(0.001, dist);
+    if (dot < 0.2) return; // player must be clearly in front hemisphere
     if (ctx.playerInvisible) return;
     if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
@@ -1557,9 +1565,12 @@ export class Boss {
     const dz = ctx.playerPos.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > range) return;
-    // direction check: boss faces +Z (facingY ≈ 0) during Attacked observe.
-    // Only detect player in the front hemisphere (player z > boss z, i.e. dz > 0).
-    if (dz < 0.3) return; // player must be clearly in front (+Z hemisphere)
+    // Direction check: detection is always in the boss's FRONT hemisphere.
+    // During Attacked, boss faces +Z (facingY≈0). Player in +Z (front) = detected.
+    const fwdX = Math.sin(this.facingY);
+    const fwdZ = Math.cos(this.facingY);
+    const dot = (dx * fwdX + dz * fwdZ) / Math.max(0.001, dist);
+    if (dot < 0.2) return; // player must be clearly in front hemisphere
     if (ctx.playerInvisible) return;
     if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
