@@ -185,6 +185,11 @@ export class Boss {
     return new THREE.Vector3(Math.sin(this.facingY), 0, Math.cos(this.facingY));
   }
 
+  // expose current phase name for minimap/visual logic
+  get phaseName(): string {
+    return this.phase.name;
+  }
+
   constructor(cb: BossCallbacks) {
     this.cb = cb;
     this.group = new THREE.Group();
@@ -232,6 +237,136 @@ export class Boss {
     this.dialogueSprite.scale.set(3, 1.5, 1);
     this.dialogueSprite.visible = false;
     this.group.add(this.dialogueSprite);
+
+    // ===== Vision cone visualization =====
+    // A semi-transparent cone on the ground showing the boss's current
+    // detection range & direction. Color shifts: yellow (idle/normal),
+    // orange (looking back/attacked observe), red (patrol cone).
+    this.buildVisionCone();
+  }
+
+  // Vision cone (half-circle for Normal/LookingBack/Attacked, narrow cone for Patrol)
+  private visionPatrolCone: THREE.Mesh;
+  private visionHalfCircle: THREE.Mesh;
+  private buildVisionCone() {
+    // Half-circle (radius 5/6) facing +Z (awareness side), laid flat on ground
+    // Use a CircleGeometry and mask to half via vertex alpha? Simpler: use a
+    // half-disc custom geometry (triangle fan from -90° to +90°).
+    const makeHalfDisc = (radius: number, color: number, opacity: number) => {
+      const segments = 24;
+      const geo = new THREE.BufferGeometry();
+      const verts: number[] = [0, 0.02, 0];
+      const indices: number[] = [];
+      // half disc from -90° to +90° (facing +Z = +z direction)
+      for (let i = 0; i <= segments; i++) {
+        const ang = -Math.PI / 2 + (i / segments) * Math.PI;
+        verts.push(Math.sin(ang) * radius, 0.02, Math.cos(ang) * radius);
+      }
+      for (let i = 0; i < segments; i++) {
+        indices.push(0, i + 1, i + 2);
+      }
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.x = 0; // already flat (y=0.02)
+      m.renderOrder = 5;
+      return m;
+    };
+    // half circle radius 6 (max of looking range), color yellow, opacity low
+    this.visionHalfCircle = makeHalfDisc(6, 0xfbbf24, 0.12);
+    this.visionHalfCircle.visible = false;
+    this.group.add(this.visionHalfCircle);
+
+    // Patrol cone: 80° cone radius 7, red
+    const makeCone = (radius: number, angleDeg: number, color: number, opacity: number) => {
+      const segments = 24;
+      const half = (angleDeg * Math.PI) / 180 / 2;
+      const geo = new THREE.BufferGeometry();
+      const verts: number[] = [0, 0.02, 0];
+      const indices: number[] = [];
+      for (let i = 0; i <= segments; i++) {
+        const ang = -half + (i / segments) * (half * 2);
+        verts.push(Math.sin(ang) * radius, 0.02, Math.cos(ang) * radius);
+      }
+      for (let i = 0; i < segments; i++) {
+        indices.push(0, i + 1, i + 2);
+      }
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(verts, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      const mat = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.renderOrder = 5;
+      return m;
+    };
+    this.visionPatrolCone = makeCone(7, 80, 0xef4444, 0.2);
+    this.visionPatrolCone.visible = false;
+    this.group.add(this.visionPatrolCone);
+  }
+
+  private updateVisionCone() {
+    // Default: hide all
+    this.visionHalfCircle.visible = false;
+    this.visionPatrolCone.visible = false;
+    // Half-circle faces +Z in local space (awareness hemisphere).
+    // Boss local +Z is the player-area side. But boss rotates with this.group.rotation.y = this.facingY.
+    // We want the cone to point in the "awareness" direction = opposite of facing.
+    // For Normal: boss faces -Z (facingY=π), awareness = +Z. The half-disc already faces +Z in local. Good.
+    // For LookingBack/Attacked observe: boss turns to face +Z (facingY=0), awareness = -Z. Need to flip cone.
+    // Simplest: rotate the half-disc to always face the awareness direction (opposite of facingY).
+    const awarenessAng = this.facingY + Math.PI; // opposite of facing
+    this.visionHalfCircle.rotation.y = awarenessAng;
+    this.visionPatrolCone.rotation.y = this.facingY; // patrol cone faces forward (where boss looks)
+
+    switch (this.state) {
+      case "Normal":
+        // dim half-circle awareness (player can sneak up from behind/sides)
+        this.visionHalfCircle.visible = true;
+        (this.visionHalfCircle.material as THREE.MeshBasicMaterial).color.setHex(0xfbbf24);
+        (this.visionHalfCircle.material as THREE.MeshBasicMaterial).opacity = 0.10;
+        break;
+      case "LookingBack":
+        // during observe phase, show brighter half-circle
+        if (this.phase.name === "observe") {
+          this.visionHalfCircle.visible = true;
+          (this.visionHalfCircle.material as THREE.MeshBasicMaterial).color.setHex(0xf97316);
+          (this.visionHalfCircle.material as THREE.MeshBasicMaterial).opacity = 0.22;
+        }
+        break;
+      case "Attacked":
+        if (this.phase.name === "a_observe") {
+          this.visionHalfCircle.visible = true;
+          (this.visionHalfCircle.material as THREE.MeshBasicMaterial).color.setHex(0xef4444);
+          (this.visionHalfCircle.material as THREE.MeshBasicMaterial).opacity = 0.25;
+        }
+        break;
+      case "Patrol":
+        // red cone in front
+        if (this.phase.name === "p_patrol" || this.phase.name === "p_return") {
+          this.visionPatrolCone.visible = true;
+        }
+        break;
+      case "PhoneFlashing":
+      case "Meeting":
+      case "Stunned":
+      case "Distracted":
+        // no active detection vision
+        break;
+    }
   }
 
   private mat(color: number, opts: Partial<THREE.MeshStandardMaterialParameters> = {}) {
@@ -578,6 +713,9 @@ export class Boss {
     const targetSit = this.sitting ? 1 : 0;
     this.sitBlend += (targetSit - this.sitBlend) * Math.min(1, dt * 8);
     this.applySittingPose(this.sitBlend);
+
+    // vision cone visualization (after facing/position updated)
+    this.updateVisionCone();
 
     // position update
     this.group.position.x = this.x;
@@ -1015,6 +1153,8 @@ export class Boss {
     this.hideDialogue();
     this.starsSprite.visible = false;
     this.statusSprite.visible = false;
+    this.visionHalfCircle.visible = false;
+    this.visionPatrolCone.visible = false;
     this.setState("Normal");
   }
 }

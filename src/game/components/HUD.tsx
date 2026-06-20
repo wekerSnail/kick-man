@@ -164,7 +164,7 @@ export function HUD() {
         </div>
 
         {/* Equipped + controls hint */}
-        <div className="pointer-events-none flex items-center gap-2 text-[11px] text-white/50">
+        <div className="pointer-events-none flex flex-wrap items-center gap-2 text-[11px] text-white/50 justify-center max-w-2xl">
           <span className="bg-black/50 px-2 py-0.5 rounded">
             装备: {equippedWeapon ? WEAPONS[equippedWeapon].name : "无（徒手踹）"}
           </span>
@@ -172,11 +172,38 @@ export function HUD() {
           <span className="bg-black/50 px-2 py-0.5 rounded">左键 踹/砍</span>
           <span className="bg-black/50 px-2 py-0.5 rounded">右键蓄力投掷</span>
           <span className="bg-black/50 px-2 py-0.5 rounded">1-6 道具</span>
+          <span className="bg-black/50 px-2 py-0.5 rounded">ESC 暂停</span>
+          <span className="bg-black/50 px-2 py-0.5 rounded">M 音效</span>
         </div>
       </div>
 
+      {/* ===== Level timer (top center, small) ===== */}
+      <LevelTimer />
+
       {/* ===== Boss dialogue (mirrored from 3D for accessibility) ===== */}
       <BossDialogueMirror />
+    </div>
+  );
+}
+
+function LevelTimer() {
+  const minimap = useGameStore((s) => s.minimap);
+  const bestTimes = useGameStore((s) => s.bestTimes);
+  const level = useGameStore((s) => s.level);
+  if (!minimap) return null;
+  const t = minimap.levelTime;
+  const tStr = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+  const best = bestTimes[level];
+  const bestStr = best !== undefined ? `${Math.floor(best / 60)}:${String(Math.floor(best % 60)).padStart(2, "0")}` : "--:--";
+  return (
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none">
+      <div className="bg-black/60 backdrop-blur-md rounded-full px-4 py-1 border border-white/10 flex items-center gap-3 text-xs">
+        <span className="text-white/50">⏱</span>
+        <span className="font-mono font-bold tabular-nums text-white">{tStr}</span>
+        <span className="text-white/30">|</span>
+        <span className="text-white/50">最佳</span>
+        <span className="font-mono tabular-nums text-amber-300">{bestStr}</span>
+      </div>
     </div>
   );
 }

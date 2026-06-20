@@ -10,6 +10,9 @@ import { GameOverScreen } from "./GameOverScreen";
 import { VictoryScreen } from "./VictoryScreen";
 import { FPSHUD } from "./FPSHUD";
 import { Toasts } from "./Toasts";
+import { Minimap } from "./Minimap";
+import { PauseMenu } from "./PauseMenu";
+import { TouchControls } from "./TouchControls";
 
 export default function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -38,7 +41,13 @@ export default function Game() {
       {ready && <FlashOverlay />}
 
       {/* UI overlays */}
-      {ready && screen === "playing" && <HUD />}
+      {ready && screen === "playing" && (
+        <>
+          <HUD />
+          <Minimap />
+          <TouchControls />
+        </>
+      )}
       {ready && screen === "start" && (
         <StartScreen
           onStart={() => {
@@ -63,6 +72,9 @@ export default function Game() {
         />
       )}
       {ready && screen === "fps" && <FPSHUD />}
+
+      {/* Pause menu overlay (works on top of playing screen) */}
+      {ready && <PauseMenu />}
 
       <Toasts />
     </div>

@@ -17,6 +17,27 @@ import {
   LEVELS,
 } from "./constants";
 
+// Minimap data (world-space, normalized to [-9, 9])
+export interface MinimapData {
+  px: number; // player x
+  pz: number; // player z
+  pfacing: number; // player facing radians
+  bx: number; // boss x
+  bz: number; // boss z
+  bfacing: number; // boss facing radians
+  bossState: BossStateName;
+  // patrol cone (when patrolling)
+  patrolCone?: { range: number; angleDeg: number };
+  // half-circle awareness range (0 = none)
+  halfRange?: number;
+  // items: list of {x, z, kind}
+  items: { x: number; z: number; kind: ItemKind }[];
+  // hiding spots (static)
+  hidingSpots: { x: number; z: number; w: number; d: number; id: string }[];
+  // level timer seconds
+  levelTime: number;
+}
+
 interface GameState {
   // screen
   screen: GameScreen;
@@ -83,6 +104,22 @@ interface GameState {
   // mutable bridge: used by engine to add items, etc.
   addItem: (kind: ItemKind, count?: number) => boolean;
   useSlot: (index: number) => void;
+
+  // minimap data (updated each frame by engine)
+  minimap: MinimapData | null;
+  setMinimap: (m: MinimapData) => void;
+
+  // paused (ESC menu)
+  paused: boolean;
+  setPaused: (p: boolean) => void;
+
+  // sound on/off
+  soundOn: boolean;
+  toggleSound: () => void;
+
+  // best level times (per level, in seconds; lower is better)
+  bestTimes: Record<number, number>;
+  setBestTime: (level: number, time: number) => void;
 }
 
 let toastId = 1;
@@ -221,6 +258,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     // consumables are consumed by engine via engineUseConsumable
     set({ selectedSlot: index });
   },
+
+  minimap: null,
+  setMinimap: (m) => set({ minimap: m }),
+
+  paused: false,
+  setPaused: (p) => set({ paused: p }),
+
+  soundOn: true,
+  toggleSound: () => set((st) => ({ soundOn: !st.soundOn })),
+
+  bestTimes: {},
+  setBestTime: (level, time) =>
+    set((st) => {
+      const prev = st.bestTimes[level];
+      if (prev === undefined || time < prev) {
+        return { bestTimes: { ...st.bestTimes, [level]: time } };
+      }
+      return {};
+    }),
 }));
 
 // helper export for components

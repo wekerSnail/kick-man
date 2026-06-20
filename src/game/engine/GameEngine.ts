@@ -149,6 +149,15 @@ export class GameEngine {
   // detection flash
   private detectFlashTimer = 0;
 
+  // hit feedback
+  private hitFlashTimer = 0; // boss red flash on hit
+  private screenShake = 0; // camera shake amount
+  private hitFlashLight: THREE.PointLight;
+
+  // level timer
+  private levelStartTime = 0;
+  private levelTime = 0;
+
   // store unsubscribe
   private unsubStore: (() => void) | null = null;
   // pending consumable use from store slot selection
@@ -186,8 +195,10 @@ export class GameEngine {
     this.camera.position.set(this.px, 11, this.pz + 9);
     this.camera.lookAt(this.px, 1, this.pz);
 
-    // lights
-    const amb = new THREE.AmbientLight(0xffffff, 0.55);
+    // lights — hemisphere for ambient sky/ground tint (adds depth)
+    const hemi = new THREE.HemisphereLight(0xfff4dd, 0x4a3a5a, 0.45);
+    this.scene.add(hemi);
+    const amb = new THREE.AmbientLight(0xffffff, 0.35);
     this.scene.add(amb);
     const dir = new THREE.DirectionalLight(0xffffff, 0.85);
     dir.position.set(8, 16, 6);
@@ -226,10 +237,18 @@ export class GameEngine {
         if (this.attackWeapon) this.consumeEquippedWeapon();
       },
       onBossHit: () => {
-        // small flash
+        // boss red flash + screen shake + hit particles
+        this.hitFlashTimer = 0.35;
+        this.screenShake = Math.max(this.screenShake, 0.4);
+        this.spawnHitParticles();
       },
     });
     this.scene.add(this.boss.group);
+
+    // hit flash light (red, attached to boss group, hidden by default)
+    this.hitFlashLight = new THREE.PointLight(0xff2200, 0, 4);
+    this.hitFlashLight.position.set(0, 1.5, 0);
+    this.boss.group.add(this.hitFlashLight);
 
     // player
     this.playerGroup = new THREE.Group();
@@ -285,6 +304,16 @@ export class GameEngine {
     this.unsubStore = useGameStore.subscribe((state, prev) => {
       if (state.screen !== prev.screen) {
         this.onScreenChange(state.screen);
+      }
+      // sync engine paused state with store paused
+      if (state.paused !== prev.paused) {
+        this.paused = state.paused;
+        // also stop charging throw when pausing
+        if (state.paused) {
+          this.charging = false;
+          this.rightDown = false;
+          this.store.setThrowCharge(0);
+        }
       }
       // detect consumable slot selection (selectedSlot changed + it's a consumable)
       if (state.selectedSlot !== prev.selectedSlot) {
@@ -386,7 +415,25 @@ export class GameEngine {
 
   // ===== input handlers =====
   private onKeyDown(e: KeyboardEvent) {
-    if (this.screen !== "playing") return;
+    // ESC toggles pause (works in playing + paused states)
+    if (e.key === "Escape") {
+      if (this.screen === "playing") {
+        this.paused = true;
+        this.store.setPaused(true);
+      } else if (this.store.paused) {
+        this.paused = false;
+        this.store.setPaused(false);
+      }
+      return;
+    }
+    // 'm' toggles sound
+    if (e.key.toLowerCase() === "m") {
+      this.store.toggleSound();
+      audio.setEnabled(this.store.soundOn);
+      this.store.pushToast(this.store.soundOn ? "音效已开启" : "音效已关闭", "info");
+      return;
+    }
+    if (this.screen !== "playing" || this.paused) return;
     this.keys[e.key.toLowerCase()] = true;
     if (e.key.toLowerCase() === "e") this.tryPickupNearby();
   }
@@ -539,6 +586,68 @@ export class GameEngine {
         maxLife: 0.8,
       });
     }
+  }
+
+  // hit impact particles at boss position (kick/swing/throw landed)
+  private spawnHitParticles() {
+    const bx = this.boss.x;
+    const bz = this.boss.z;
+    // impact ring (white-yellow)
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.2, 0.45, 20),
+      new THREE.MeshBasicMaterial({ color: 0xfff2a0, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+    );
+    ring.position.set(bx, 1.2, bz);
+    ring.rotation.x = -Math.PI / 2;
+    this.scene.add(ring);
+    this.particles.push({
+      mesh: ring as unknown as THREE.Mesh,
+      vel: new THREE.Vector3(),
+      life: 0.4,
+      maxLife: 0.4,
+    });
+    // spark burst
+    for (let i = 0; i < 14; i++) {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.06, 0.06),
+        new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? 0xffcc44 : 0xff6644, transparent: true, opacity: 1 })
+      );
+      mesh.position.set(bx, 1.3, bz);
+      this.scene.add(mesh);
+      const ang = Math.random() * Math.PI * 2;
+      const sp = 3 + Math.random() * 3;
+      this.particles.push({
+        mesh,
+        vel: new THREE.Vector3(Math.cos(ang) * sp, 2 + Math.random() * 2, Math.sin(ang) * sp),
+        life: 0.5 + Math.random() * 0.3,
+        maxLife: 0.8,
+      });
+    }
+    // "POW!" text sprite
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 128;
+    const ctx = c.getContext("2d")!;
+    ctx.font = "bold 64px sans-serif";
+    ctx.fillStyle = "#ffcc00";
+    ctx.strokeStyle = "#cc2200";
+    ctx.lineWidth = 8;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.strokeText("POW!", 128, 64);
+    ctx.fillText("POW!", 128, 64);
+    const tex = new THREE.CanvasTexture(c);
+    tex.needsUpdate = true;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
+    sprite.position.set(bx, 2.4, bz);
+    sprite.scale.set(1.2, 0.6, 1);
+    this.scene.add(sprite);
+    this.particles.push({
+      mesh: sprite as unknown as THREE.Mesh,
+      vel: new THREE.Vector3(0, 1.5, 0),
+      life: 0.6,
+      maxLife: 0.6,
+    });
   }
 
   // ===== attack =====
@@ -743,6 +852,8 @@ export class GameEngine {
     audio.levelComplete();
     this.screen = "level-transition";
     this.paused = true;
+    // record best time for this level
+    this.store.setBestTime(this.store.level, this.levelTime);
     if (this.store.level >= LEVELS.length) {
       // victory
       audio.victory();
@@ -784,6 +895,11 @@ export class GameEngine {
     this.tSpeed = 0;
     this.tInvis = 0;
     this.tCombo = 0;
+    this.levelTime = 0;
+    this.levelStartTime = performance.now() / 1000;
+    this.screenShake = 0;
+    this.hitFlashTimer = 0;
+    this.hitFlashLight.intensity = 0;
     this.tShield = 0;
     this.showShieldMesh(false);
     // clear items
@@ -974,6 +1090,9 @@ export class GameEngine {
       this.updateStatusEffects(dt);
       this.updateHUD(dt);
       this.updateCamera(dt);
+      this.updateHitFlash(dt);
+      this.updateLevelTimer(dt);
+      this.updateMinimap();
     }
     // always render (so fps mode overlay transitions are clean) — but fps mode renders itself
     if (this.screen !== "fps") {
@@ -1147,6 +1266,15 @@ export class GameEngine {
       it.phase += dt * 2;
       it.mesh.position.y = it.baseY + Math.sin(it.phase) * 0.2;
       it.mesh.rotation.y += dt * 1.5;
+      // magnet effect: when player within 2.5u, drift item toward player
+      const dx = this.px - it.mesh.position.x;
+      const dz = this.pz - it.mesh.position.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d < 2.5 && d > 0.01) {
+        const pull = (1 - d / 2.5) * 2.5 * dt; // stronger when closer
+        it.mesh.position.x += (dx / d) * pull;
+        it.mesh.position.z += (dz / d) * pull;
+      }
     }
   }
 
@@ -1192,16 +1320,25 @@ export class GameEngine {
       p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
       p.life -= dt;
       const t = p.life / p.maxLife;
-      const mat = p.mesh.material as THREE.MeshBasicMaterial;
-      if (mat) mat.opacity = Math.max(0, t);
-      const ring = p.mesh.geometry as THREE.BufferGeometry;
-      if (ring instanceof THREE.RingGeometry) {
-        const s = 1 + (1 - t) * 4;
-        p.mesh.scale.set(s, s, s);
+      // sprite vs mesh handling
+      if (p.mesh instanceof THREE.Sprite) {
+        const mat = p.mesh.material as THREE.SpriteMaterial;
+        if (mat) mat.opacity = Math.max(0, t);
+        // grow slightly then shrink
+        const s = 0.8 + (1 - t) * 0.4;
+        p.mesh.scale.set(1.2 * s, 0.6 * s, 1);
+      } else {
+        const mat = p.mesh.material as THREE.MeshBasicMaterial;
+        if (mat) mat.opacity = Math.max(0, t);
+        const geo = p.mesh.geometry as THREE.BufferGeometry;
+        if (geo instanceof THREE.RingGeometry) {
+          const s = 1 + (1 - t) * 4;
+          p.mesh.scale.set(s, s, s);
+        }
       }
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
+        if (!(p.mesh instanceof THREE.Sprite)) p.mesh.geometry.dispose();
         (p.mesh.material as THREE.Material).dispose();
         this.particles.splice(i, 1);
       }
@@ -1325,7 +1462,71 @@ export class GameEngine {
       this.pz + this.camOffset.z
     );
     this.camera.position.lerp(target, Math.min(1, dt * 5));
-    this.camera.lookAt(this.px, 1, this.pz);
+    // screen shake
+    const sh = this.screenShake;
+    this.screenShake = Math.max(0, this.screenShake - dt * 2.5);
+    const lookX = this.px + (Math.random() - 0.5) * sh * 0.4;
+    const lookY = 1 + (Math.random() - 0.5) * sh * 0.4;
+    const lookZ = this.pz + (Math.random() - 0.5) * sh * 0.4;
+    this.camera.lookAt(lookX, lookY, lookZ);
+  }
+
+  private updateHitFlash(dt: number) {
+    if (this.hitFlashTimer > 0) {
+      this.hitFlashTimer -= dt;
+      // pulse intensity (fade out)
+      const t = Math.max(0, this.hitFlashTimer / 0.35);
+      this.hitFlashLight.intensity = t * 4;
+    } else {
+      this.hitFlashLight.intensity = 0;
+    }
+  }
+
+  private updateLevelTimer(dt: number) {
+    this.levelTime += dt;
+  }
+
+  private updateMinimap() {
+    // build minimap data from current engine state
+    const items = this.items.map((it) => ({
+      x: it.mesh.position.x,
+      z: it.mesh.position.z,
+      kind: it.kind,
+    }));
+    const hidingSpots = HIDING_SPOTS.map((s) => ({
+      x: s.x,
+      z: s.z,
+      w: s.w,
+      d: s.d,
+      id: s.id,
+    }));
+    // determine vision data
+    let patrolCone: { range: number; angleDeg: number } | undefined;
+    let halfRange: number | undefined;
+    const bs = this.boss.state;
+    if (bs === "Patrol" && (this.boss.phaseName === "p_patrol" || this.boss.phaseName === "p_return")) {
+      patrolCone = { range: 7, angleDeg: 80 };
+    } else if (bs === "Normal") {
+      halfRange = 5;
+    } else if (bs === "LookingBack" && this.boss.phaseName === "observe") {
+      halfRange = 6;
+    } else if (bs === "Attacked" && this.boss.phaseName === "a_observe") {
+      halfRange = 5;
+    }
+    this.store.setMinimap({
+      px: this.px,
+      pz: this.pz,
+      pfacing: this.pfacing,
+      bx: this.boss.x,
+      bz: this.boss.z,
+      bfacing: this.boss.facingY,
+      bossState: bs,
+      patrolCone,
+      halfRange,
+      items,
+      hidingSpots,
+      levelTime: this.levelTime,
+    });
   }
 
   // ===== cleanup =====

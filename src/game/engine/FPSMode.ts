@@ -487,8 +487,21 @@ export class FPSMode {
   }
 
   private getShootDir(): THREE.Vector3 {
+    // Force matrix update so getWorldDirection returns a valid vector even
+    // before the render loop runs (and when pointer lock is unavailable in
+    // headless browsers — the camera rotation is still set from yaw/pitch).
+    this.camera.updateMatrixWorld(true);
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
+    // Fallback: if direction is zero/NaN (degenerate matrix), compute from yaw/pitch
+    if (dir.lengthSq() < 1e-6 || !isFinite(dir.x) || !isFinite(dir.y) || !isFinite(dir.z)) {
+      const cp = Math.cos(this.pitch);
+      dir.set(
+        -Math.sin(this.yaw) * cp,
+        Math.sin(this.pitch),
+        -Math.cos(this.yaw) * cp
+      ).normalize();
+    }
     return dir;
   }
 

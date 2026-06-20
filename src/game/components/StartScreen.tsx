@@ -43,13 +43,13 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
             className="group relative px-12 py-4 text-2xl font-bold rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-gray-900 shadow-[0_0_40px_rgba(251,146,60,0.5)] hover:shadow-[0_0_60px_rgba(251,146,60,0.8)] hover:scale-105 transition-all"
           >
             ▶ 开始游戏
-            <span className="absolute -top-2 -right-2 text-xs bg-red-500 text-white px-2 py-0.5 rounded-full animate-pulse">
+            <span className="absolute -top-3 -right-3 text-sm bg-gradient-to-br from-rose-500 to-red-600 text-white px-3 py-1 rounded-full font-bold shadow-lg animate-bounce border-2 border-white/30">
               7 关
             </span>
           </button>
           <button
             onClick={() => setShowHelp((s) => !s)}
-            className="text-white/60 hover:text-white text-sm underline underline-offset-4"
+            className="text-white/70 hover:text-white text-sm underline underline-offset-4 font-medium"
           >
             {showHelp ? "收起说明" : "查看玩法说明"}
           </button>
@@ -116,7 +116,7 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
           </div>
         )}
 
-        <p className="text-white/30 text-xs mt-6">
+        <p className="text-white/50 text-xs mt-6">
           点击开始即视为同意被老板扣工资 · Powered by Three.js
         </p>
       </div>
