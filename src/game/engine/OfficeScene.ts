@@ -85,34 +85,39 @@ export class OfficeScene {
     this.group.add(b4);
 
     // ===== Boss desk (at back center) =====
-    this.buildDesk(0, -6.8, 3.2, 1.4, 0x8b5a2b, true);
+    this.buildDesk(0, -9.2, 3.6, 1.4, 0x8b5a2b, true);
 
     // Boss chair at boss's sitting position (boss sits in front of desk, facing -Z)
-    const chair = this.buildChair(0, -5.8, 0x333333);
+    const chair = this.buildChair(0, -8, 0x333333);
     this.group.add(chair);
 
     // ===== Player's cubicle desk (off to the side so center path is clear) =====
-    this.buildDesk(-4.5, 3, 2.4, 1.0, 0x9a6b3f, false);
-    this.group.add(this.buildChair(-4.5, 4.1, 0x222222));
+    this.buildDesk(-6, 4, 2.4, 1.0, 0x9a6b3f, false);
+    this.group.add(this.buildChair(-6, 5.1, 0x222222));
+    // second cubicle desk on the right
+    this.buildDesk(6, 5, 2.4, 1.0, 0x9a6b3f, false);
+    this.group.add(this.buildChair(6, 6.1, 0x222222));
 
     // ===== Side furniture: filing cabinets =====
-    this.buildCabinet(-7.5, -2, 0x4a4a4a);
-    this.buildCabinet(-7.5, 0, 0x4a4a4a);
-    this.buildCabinet(7.5, 4, 0x3a3a3a);
+    this.buildCabinet(-10, -3, 0x4a4a4a);
+    this.buildCabinet(-10, -1, 0x4a4a4a);
+    this.buildCabinet(10, -3, 0x3a3a3a);
+    this.buildCabinet(10, 6, 0x3a3a3a);
 
     // ===== Coffee table + water cooler =====
-    this.buildCoffeeTable(6, -2);
-    this.buildWaterCooler(-2, 6.5);
+    this.buildCoffeeTable(8, -2);
+    this.buildWaterCooler(-3, 9);
 
-    // ===== Hiding spots (with colliders) =====
+    // ===== Hiding spots (with colliders) — id prefix determines type =====
     for (const spot of HIDING_SPOTS) {
-      if (spot.id === "plant") {
+      const kind = spot.id.replace(/[0-9]+$/, ""); // "plant2" → "plant"
+      if (kind === "plant") {
         const plant = this.buildPlant(spot.x, spot.z);
         this.group.add(plant);
-      } else if (spot.id === "shelf") {
+      } else if (kind === "shelf") {
         const shelf = this.buildShelf(spot.x, spot.z);
         this.group.add(shelf);
-      } else if (spot.id === "sofa") {
+      } else if (kind === "sofa") {
         const sofa = this.buildSofa(spot.x, spot.z);
         this.group.add(sofa);
       }
@@ -126,21 +131,27 @@ export class OfficeScene {
     }
 
     // ===== Decorative rug =====
-    const rugGeo = new THREE.PlaneGeometry(6, 4);
+    const rugGeo = new THREE.PlaneGeometry(8, 5);
     const rugMat = this.mat(0x9c3a3a, { roughness: 1 });
     const rug = new THREE.Mesh(rugGeo, rugMat);
     rug.rotation.x = -Math.PI / 2;
-    rug.position.set(0, 0.02, -1);
+    rug.position.set(0, 0.02, -2);
     this.group.add(rug);
 
     // ===== Wall art (back wall) =====
     this.buildWallArt(0, 1.6, -H + t + 0.05);
+    this.buildWallArt(-4, 1.6, -H + t + 0.05);
+    this.buildWallArt(4, 1.6, -H + t + 0.05);
     // ===== Window on left wall =====
     this.buildWindow(-H + t + 0.06, 1.6, 0);
+    // ===== Window on right wall =====
+    this.buildWindow(H - t - 0.06, 1.6, 0);
 
     // ===== Ceiling lights (visual only) =====
-    this.buildCeilingLight(-3, -2);
-    this.buildCeilingLight(3, 2);
+    this.buildCeilingLight(-4, -3);
+    this.buildCeilingLight(4, -3);
+    this.buildCeilingLight(-4, 4);
+    this.buildCeilingLight(4, 4);
   }
 
   private addWall(

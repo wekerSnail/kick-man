@@ -1153,21 +1153,23 @@ export class Boss {
     ]);
   }
 
-  // Candidate patrol waypoints scattered around the office room.
+  // Candidate patrol waypoints scattered around the expanded office room (24x24).
   // Boss randomly picks a subset to visit, then returns home.
   private static PATROL_WAYPOINTS: { x: number; z: number }[] = [
-    { x: -4, z: -2 },   // left-back (near player cubicle desk)
-    { x: -4, z: 4 },    // left-front
-    { x: 4, z: 4 },     // right-front
-    { x: 4, z: -2 },    // right-back
-    { x: -6, z: 0 },    // far left (cabinets)
-    { x: 6, z: 0 },     // far right
-    { x: 0, z: 3 },     // center-front
-    { x: -2, z: 6 },    // front-left corner
-    { x: 2, z: 6 },     // front-right corner
-    { x: -5, z: -5 },   // back-left near boss desk
-    { x: 5, z: -5 },    // back-right near boss desk
-    { x: 0, z: 0 },     // center
+    { x: -6, z: -3 },    // left-back (near plant)
+    { x: -6, z: 4 },     // left-front (near cubicle desk)
+    { x: 6, z: 5 },      // right-front (near second cubicle)
+    { x: 6, z: -2 },     // right-back (near coffee table)
+    { x: -9, z: 0 },     // far left (cabinets / sofa)
+    { x: 9, z: 3 },      // far right (sofa2)
+    { x: 0, z: 4 },      // center-front
+    { x: -3, z: 9 },     // front-left (water cooler area)
+    { x: 3, z: 9 },      // front-right
+    { x: -8, z: -6 },    // back-left corner
+    { x: 8, z: -6 },     // back-right corner
+    { x: 0, z: 0 },      // center
+    { x: -10, z: 6 },    // far front-left
+    { x: 10, z: -4 },    // far back-right
   ];
 
   private generatePatrolRoute() {

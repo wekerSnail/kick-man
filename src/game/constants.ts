@@ -8,10 +8,10 @@ import type {
 
 // ===== World / player =====
 export const WORLD = {
-  half: 9, // [-9, 9]
+  half: 12, // [-12, 12] — expanded room for more player space
   wallHeight: 3.2,
-  playerStart: { x: 0, z: 5 },
-  bossStart: { x: 0, z: -5.8 },
+  playerStart: { x: 0, z: 7 },
+  bossStart: { x: 0, z: -8 },
   playerSpeed: 5,
   playerRadius: 0.55,
   bossRadius: 0.7,
@@ -180,9 +180,13 @@ export interface HidingSpot {
 }
 
 export const HIDING_SPOTS: HidingSpot[] = [
-  { id: "plant", name: "盆栽", x: -5, z: -4, w: 2, h: 3, d: 2, color: 0x2f8f4e },
-  { id: "shelf", name: "书架", x: 5, z: -9, w: 3, h: 2, d: 1, color: 0x6b4423 },
-  { id: "sofa", name: "沙发", x: -6, z: 0, w: 4, h: 1, d: 2, color: 0x8b5cf6 },
+  { id: "plant", name: "盆栽", x: -6, z: -5, w: 2, h: 3, d: 2, color: 0x2f8f4e },
+  { id: "plant2", name: "盆栽", x: 7, z: -6, w: 2, h: 3, d: 2, color: 0x2f8f4e },
+  { id: "plant3", name: "盆栽", x: -8, z: 4, w: 2, h: 3, d: 2, color: 0x2f8f4e },
+  { id: "shelf", name: "书架", x: 6, z: -11, w: 3, h: 2, d: 1, color: 0x6b4423 },
+  { id: "shelf2", name: "书架", x: -6, z: 11, w: 3, h: 2, d: 1, color: 0x6b4423 },
+  { id: "sofa", name: "沙发", x: -8, z: 1, w: 4, h: 1, d: 2, color: 0x8b5cf6 },
+  { id: "sofa2", name: "沙发", x: 9, z: 3, w: 4, h: 1, d: 2, color: 0x8b5cf6 },
 ];
 
 // ===== Levels =====

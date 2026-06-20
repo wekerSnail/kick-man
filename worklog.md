@@ -808,3 +808,72 @@ Task: Fix boss walk animation, fix patrol route (random waypoints + return home)
 - 修改：src/game/engine/Boss.ts（sit/stand blend 不覆盖走路动画，generatePatrolRoute 随机路线，moveAlongRoute 使用 collidesAtRadius(0.35)，移除旧 collidesAt）
 - 修改：src/game/engine/FPSMode.ts（onKey 新增 1/2/3 武器切换）
 - 修改：src/game/components/FPSHUD.tsx（+右下角武器切换面板 +底部 1/2/3 切换提示）
+
+---
+Task ID: 23 (room expansion) — COMPLETION
+Agent: main (orchestrator)
+Task: Expand room size + add more hiding spots + reposition furniture for better gameplay space
+
+## 项目当前状态描述/判断
+用户反馈房间空间太小，玩家活动空间不足，特别是巡查时躲藏范围太小。已将房间从 18×18 扩大到 24×24，藏身点从 3 个增加到 7 个，重新布局家具，更新巡查路线和摄像机。游戏趣味性显著提升。
+
+## 当前目标/已完成的修改/验证结果
+
+### 修改内容
+
+1. **房间扩大**（constants.ts WORLD）：
+   - half: 9 → 12（房间从 18×18 扩大到 24×24）
+   - playerStart: (0, 5) → (0, 7)
+   - bossStart: (0, -5.8) → (0, -8)
+   - 玩家与老板初始距离：10.8u → 15u
+
+2. **藏身点增加**（constants.ts HIDING_SPOTS）：
+   - 从 3 个增加到 7 个：
+     - 盆栽 ×3：(-6,-5) / (7,-6) / (-8,4) — 房间各角分布
+     - 书架 ×2：(6,-11) / (-6,11) — 前后墙
+     - 沙发 ×2：(-8,1) / (9,3) — 左右两侧
+   - 玩家巡查时有充足躲藏选择
+
+3. **家具重新布局**（OfficeScene.ts）：
+   - 老板桌：(0,-6.8) → (0,-9.2)，尺寸 3.2→3.6
+   - 老板椅：(0,-5.8) → (0,-8)
+   - 玩家工位 ×2：左 (-6,4) + 右 (6,5)（原仅 1 个）
+   - 文件柜 ×4：(-10,-3)/(-10,-1)/(10,-3)/(10,6)（原 3 个）
+   - 咖啡桌：(6,-2) → (8,-2)
+   - 饮水机：(-2,6.5) → (-3,9)
+   - 装饰：地毯 6×4 → 8×5，墙画 ×3，窗户 ×2（左右墙），吊灯 ×4
+
+4. **巡查路线扩展**（Boss.ts PATROL_WAYPOINTS）：
+   - 12 个候选点扩展到 14 个，覆盖 24×24 房间各区域
+   - 坐标范围从 ±6 扩展到 ±10
+
+5. **摄像机调整**（GameEngine.ts）：
+   - camOffset: (0,11,9) → (0,13,11) — 更高更远
+   - FOV: 50° → 55°
+   - 远裁面: 100 → 120
+   - 雾距: (25,45) → (30,60)
+   - 确保更大的房间完整可见
+
+6. **藏身点类型通用化**（OfficeScene.ts）：
+   - id 匹配改为前缀匹配（`spot.id.replace(/[0-9]+$/,"")`）
+   - 支持 plant/plant2/plant3、shelf/shelf2、sofa/sofa2 等命名
+
+### 验证结果（agent-browser + VLM）
+- 房间尺寸：worldHalf=12, playerZ=7, bossZ=-8, dist=15 ✓
+- 藏身点：7 个，minimap 显示多个紫色块 ✓
+- 躲藏测试：sofa(-8,1)/plant2(7,-6)/sofa2(9,3) 全部 hidden=true ✓
+- 巡查移动：Boss 从 (0,-8) 移动到 (-5.5,-3.2)，patrolIdx 0→1→2 ✓
+- 踹击：玩家靠近后 kicks=1，dist=0.79 ✓
+- VLM 评分："room noticeably larger, multiple hiding spots scattered, minimap larger" 8/10 ✓
+- Lint 0 错误，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless 环境 pointer lock 不可用**（同前轮）
+2. **性能**：更大的房间 + 更多家具，headless 仍 ~16fps，真实浏览器 60fps 应无压力
+3. **巡查碰撞**：使用 0.35 半径，Boss 能在更大房间自由穿行
+
+## 文件清单（本轮修改）
+- 修改：src/game/constants.ts（WORLD half 9→12, playerStart/bossStart 调整, HIDING_SPOTS 3→7 个）
+- 修改：src/game/engine/OfficeScene.ts（家具重新布局, 藏身点 id 前缀匹配, 地毯/墙画/窗户/吊灯增加）
+- 修改：src/game/engine/Boss.ts（PATROL_WAYPOINTS 12→14 个，覆盖更大房间）
+- 修改：src/game/engine/GameEngine.ts（camOffset/FoV/远裁面/雾距 调整以适配大房间）

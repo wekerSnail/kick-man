@@ -125,7 +125,7 @@ export class GameEngine {
   private statusIcon: THREE.Sprite;
 
   // camera offset (iso 45°)
-  private camOffset = new THREE.Vector3(0, 11, 9);
+  private camOffset = new THREE.Vector3(0, 13, 11);
 
   // input
   private keys: Record<string, boolean> = {};
@@ -183,16 +183,16 @@ export class GameEngine {
     // scene
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1a24);
-    this.scene.fog = new THREE.Fog(0x1a1a24, 25, 45);
+    this.scene.fog = new THREE.Fog(0x1a1a24, 30, 60);
 
-    // camera
+    // camera — higher + further back to frame the larger 24x24 room
     this.camera = new THREE.PerspectiveCamera(
-      50,
+      55,
       container.clientWidth / container.clientHeight,
       0.1,
-      100
+      120
     );
-    this.camera.position.set(this.px, 11, this.pz + 9);
+    this.camera.position.set(this.px, 13, this.pz + 11);
     this.camera.lookAt(this.px, 1, this.pz);
 
     // lights — hemisphere for ambient sky/ground tint (adds depth)
