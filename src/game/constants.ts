@@ -18,7 +18,7 @@ export const WORLD = {
   kickRange: 2,
   kickCooldown: 5,
   pickupRange: 1.5,
-  detectionCooldown: 5, // 半圆检测扣血冷却
+  detectionCooldown: 3, // 半圆检测扣血冷却（从5秒降至3秒）
 };
 
 // ===== Weapons =====
@@ -197,7 +197,7 @@ export const LEVELS: LevelDef[] = [
   { level: 4, target: 50 },
   { level: 5, target: 70 },
   { level: 6, target: 100 },
-  { level: 7, target: 150 },
+  { level: 7, target: 120 },
 ];
 
 // ===== Item spawn =====

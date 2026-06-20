@@ -1062,8 +1062,8 @@ export class GameEngine {
   private computeStars(): number {
     const dmg = this.store.damageThisLevel;
     const det = this.store.detectionsThisLevel;
-    if (dmg === 0 && det === 0) return 3;
-    if (det <= 1 && dmg <= 1) return 2;
+    if (dmg === 0 && det <= 1) return 3;  // 允许被发现1次仍得3星
+    if (dmg <= 1 && det <= 2) return 2;
     return 1;
   }
 

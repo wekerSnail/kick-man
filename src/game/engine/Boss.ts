@@ -1210,8 +1210,10 @@ export class Boss {
       // if suspicion maxed → trigger LookingBack
       if (this.suspicion >= 1) {
         this.suspicion = 0;
-        this.setState("LookingBack");
-        this.startLookingBackSequence();
+        if (this.detectCooldown <= 0) {
+          this.setState("LookingBack");
+          this.startLookingBackSequence();
+        }
       }
     }
 
