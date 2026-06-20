@@ -1213,8 +1213,7 @@ export class GameEngine {
     // clear projectiles
     for (const p of this.projectiles) {
       this.scene.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      (p.mesh.material as THREE.Material).dispose();
+      this.disposeMesh(p.mesh);
     }
     this.projectiles = [];
     // clear smoke clouds
@@ -1644,6 +1643,18 @@ export class GameEngine {
     }
   }
 
+  private disposeMesh(obj: THREE.Object3D) {
+    obj.traverse((o) => {
+      if (o instanceof THREE.Mesh) {
+        o.geometry?.dispose();
+        if (o.material) {
+          if (Array.isArray(o.material)) o.material.forEach((m) => m.dispose());
+          else (o.material as THREE.Material).dispose();
+        }
+      }
+    });
+  }
+
   private updateProjectiles(dt: number) {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
@@ -1664,16 +1675,14 @@ export class GameEngine {
           this.checkLevelComplete();
         }
         this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        (p.mesh.material as THREE.Material).dispose();
+        this.disposeMesh(p.mesh);
         this.projectiles.splice(i, 1);
         continue;
       }
       // out of bounds or life
       if (p.life <= 0 || Math.abs(p.mesh.position.x) > WORLD.half + 2 || Math.abs(p.mesh.position.z) > WORLD.half + 2 || p.mesh.position.y < 0) {
         this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        (p.mesh.material as THREE.Material).dispose();
+        this.disposeMesh(p.mesh);
         this.projectiles.splice(i, 1);
       }
     }
