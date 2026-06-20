@@ -925,3 +925,34 @@ Task: Fix game running in background during start/transition screens, causing bo
 
 ## 文件清单（本轮修改）
 - 修改：src/game/engine/GameEngine.ts（screen 初始值 "playing"→"start", pushBossEventBanner 守卫, triggerLevelComplete/triggerGameOver/startLevel/onScreenChange 清理 transient 状态）
+
+---
+Task ID: 25 (FPS exit + game over restart fix) — COMPLETION
+Agent: main (orchestrator)
+Task: Fix FPS mode exit not returning to level-transition (stale FPS UI), fix game over restart showing red alert state
+
+## 项目当前状态描述/判断
+用户报告两个 bug：1) 彩蛋模式结束后没有回到结算画面，直接进入游戏画面且部分图标还是彩蛋模式的；2) 游戏失败后重新开始，进入的界面不是初始状态，页面一直显示红色警报状态。根因是 FPS 退出时未清除 store FPS 状态 + startLevel 未重置 detectFlashTimer 和 stale minimap 数据。已修复。
+
+## 当前目标/已完成的修改/验证结果
+
+### Bug 修复
+
+1. **FPS 模式退出未清除状态**（exitFPS）：
+   - 根因：exitFPS 调用 `store.setScreen("level-transition")` 但未清除 fpsWeapon/fpsTimeLeft/fpsScore，导致部分 FPS UI 残留。
+   - 修复：exitFPS 中调用 `useGameStore.setState({ fpsWeapon: null, fpsTimeLeft: 30, fpsAmmo: 999, fpsScore: 0 })` 清除 FPS 状态；额外清除 bossDialogue 和 eventBanner；设置 paused=true。
+   - 验证：FPS 结束后 screen="level-transition", fpsWeapon=null, fpsTimeLeft=30, fpsScore=0, bossDialogue=null ✓；VLM 确认 "level transition screen, no FPS elements" ✓
+
+2. **游戏失败重启红色警报状态**（startLevel）：
+   - 根因：startLevel 重置了 screenShake/hitFlashTimer 但漏了 detectFlashTimer；且 minimap 数据（bossState/suspicion/bossEnraged）未被重置，DetectionArrow 和 HUD 读取 stale minimap 显示红色警报。
+   - 修复 A：startLevel 增加 `this.detectFlashTimer = 0` 重置。
+   - 修复 B：startLevel 中显式 setMinimap 传入干净的初始值（bossState="Normal", suspicion=0, bossEnraged=false, levelTime=0），覆盖上一关残留的 minimap 数据。
+   - 验证：游戏失败（bossState=Attacked/suspicion=0.8/enraged=true）→ 重新开始 → bossState="Normal", minimapBossState="Normal", suspicion=0, bossEnraged=false, detectFlashTimer=0, hitFlashTimer=0, screenShake=0 ✓；VLM 确认 "no red alert, normal state, full HP, no stale UI" ✓
+
+### 验证结果（agent-browser + VLM）
+- FPS 退出：screen="level-transition", fpsWeapon=null, fpsTimeLeft=30, fpsScore=0 ✓；VLM "level transition screen, no FPS elements" ✓
+- 游戏重启：hp=3, bossState="Normal", minimap 全部初始值, detectFlashTimer=0 ✓；VLM "no red alert, normal state, full HP, no stale UI" ✓
+- Lint 0 错误，dev server 200 OK
+
+## 文件清单（本轮修改）
+- 修改：src/game/engine/GameEngine.ts（exitFPS 清除 FPS store 状态 + paused=true; startLevel 重置 detectFlashTimer + 显式 setMinimap 干净初始值）

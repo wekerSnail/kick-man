@@ -1163,6 +1163,7 @@ export class GameEngine {
     this.levelStartTime = performance.now() / 1000;
     this.screenShake = 0;
     this.hitFlashTimer = 0;
+    this.detectFlashTimer = 0;
     this.usedWeaponThisLevel = false;
     this.usedItemsThisLevel = false;
     this.wasEnragedLastFrame = false;
@@ -1170,6 +1171,25 @@ export class GameEngine {
     this.store.clearEventBanner();
     this.store.dismissVariantTutorial();
     this.store.dismissLevel1Tutorial();
+    // clear stale minimap data so DetectionArrow/HUD don't show red alert from previous level
+    this.store.setMinimap({
+      px: this.px,
+      pz: this.pz,
+      pfacing: this.pfacing,
+      bx: this.boss.x,
+      bz: this.boss.z,
+      bfacing: this.boss.facingY,
+      bossLookDir: this.boss.targetFacingY,
+      bossState: "Normal",
+      bossVariant: this.boss.variant,
+      bossHP: this.boss.bossHP,
+      bossMaxHP: this.boss.bossMaxHP,
+      bossEnraged: false,
+      suspicion: 0,
+      items: [],
+      hidingSpots: HIDING_SPOTS.map((s) => ({ x: s.x, z: s.z, w: s.w, d: s.d, id: s.id })),
+      levelTime: 0,
+    });
     // reset run stats
     this.store.resetRunStats();
     this.store.resetEnrageSurvival();
@@ -1302,10 +1322,20 @@ export class GameEngine {
       this.fpsMode.stop();
       this.fpsMode = null;
     }
+    // clear FPS store state so no FPS UI lingers
+    // setFps doesn't accept null weapon, so we directly set via store
+    useGameStore.setState({
+      fpsWeapon: null,
+      fpsTimeLeft: 30,
+      fpsAmmo: 999,
+      fpsScore: 0,
+    });
     // return to level transition
     this.store.setBossDialogue(null);
+    this.store.clearEventBanner();
     this.store.setScreen("level-transition");
     this.screen = "level-transition";
+    this.paused = true;
     audio.startBgMusic();
   }
 
