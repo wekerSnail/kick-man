@@ -169,7 +169,6 @@ export class Boss {
   // patrol waypoints
   private patrolRoute: THREE.Vector3[] = [];
   private patrolIdx = 0;
-  private stuckTimer = 0;
   private lastPos = new THREE.Vector3();
   private patrolDirection = 1; // 1 forward, -1 back
 
@@ -1701,12 +1700,12 @@ export class Boss {
     let nx = this.x + (dx / dist) * step;
     let nz = this.z + (dz / dist) * step;
     // collision check with smaller patrol radius (boss can navigate tight spaces)
-    const blocked = this.collidesAtRadius(nx, nz, ctx.colliders, 0.35);
+    const blocked = this.collidesAtRadius(nx, nz, ctx.colliders, 0.5);
     if (blocked) {
       // try sliding
-      if (!this.collidesAtRadius(nx, this.z, ctx.colliders, 0.35)) {
+      if (!this.collidesAtRadius(nx, this.z, ctx.colliders, 0.5)) {
         nz = this.z;
-      } else if (!this.collidesAtRadius(this.x, nz, ctx.colliders, 0.35)) {
+      } else if (!this.collidesAtRadius(this.x, nz, ctx.colliders, 0.5)) {
         nx = this.x;
       } else {
         // stuck — advance waypoint
@@ -1795,8 +1794,20 @@ export class Boss {
         const dist = Math.sqrt(dx * dx + dz * dz);
         if (dist > 0.5) {
           const step = Math.min(dist, 3 * ctx.dt);
-          this.x += (dx / dist) * step;
-          this.z += (dz / dist) * step;
+          let nx = this.x + (dx / dist) * step;
+          let nz = this.z + (dz / dist) * step;
+          if (this.collidesAtRadius(nx, nz, ctx.colliders, 0.5)) {
+            if (!this.collidesAtRadius(nx, this.z, ctx.colliders, 0.5)) {
+              nz = this.z;
+            } else if (!this.collidesAtRadius(this.x, nz, ctx.colliders, 0.5)) {
+              nx = this.x;
+            } else {
+              this.advancePhase();
+              return;
+            }
+          }
+          this.x = nx;
+          this.z = nz;
           this.targetFacingY = Math.atan2(dx, dz);
           this.walkPhase += ctx.dt * 8;
           this.leftLeg.rotation.x = Math.sin(this.walkPhase) * 0.6;
@@ -1820,8 +1831,26 @@ export class Boss {
       const dist = Math.sqrt(dx * dx + dz * dz);
       if (dist > 0.3) {
         const step = Math.min(dist, 3 * ctx.dt);
-        this.x += (dx / dist) * step;
-        this.z += (dz / dist) * step;
+        let nx = this.x + (dx / dist) * step;
+        let nz = this.z + (dz / dist) * step;
+        if (this.collidesAtRadius(nx, nz, ctx.colliders, 0.5)) {
+          if (!this.collidesAtRadius(nx, this.z, ctx.colliders, 0.5)) {
+            nz = this.z;
+          } else if (!this.collidesAtRadius(this.x, nz, ctx.colliders, 0.5)) {
+            nx = this.x;
+          } else {
+            this.x = this.homeX;
+            this.z = this.homeZ;
+            this.targetFacingY = Math.PI;
+            this.sitting = true;
+            if (this.phase.t >= this.phase.dur) {
+              this.setState("Normal");
+            }
+            return;
+          }
+        }
+        this.x = nx;
+        this.z = nz;
         this.targetFacingY = Math.atan2(dx, dz);
         this.walkPhase += ctx.dt * 8;
         this.leftLeg.rotation.x = Math.sin(this.walkPhase) * 0.6;
