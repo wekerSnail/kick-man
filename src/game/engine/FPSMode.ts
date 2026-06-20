@@ -152,6 +152,15 @@ export class FPSMode {
     this.onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         document.exitPointerLock();
+        return;
+      }
+      // weapon switching: 1=laser, 2=rocket, 3=grenade
+      if (e.key === "1") {
+        this.setWeapon("laser");
+      } else if (e.key === "2") {
+        this.setWeapon("rocket");
+      } else if (e.key === "3") {
+        this.setWeapon("grenade");
       }
     };
   }

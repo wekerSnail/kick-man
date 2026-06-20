@@ -761,3 +761,50 @@ Task: QA pass + fix achievement count bug, add 2 new achievements, Boss variants
 - 修改：src/game/components/VictoryScreen.tsx（使用 ACHIEVEMENT_COUNT + 新增 击败变体 + 到达关卡 统计卡）
 - 修改：src/game/components/PauseMenu.tsx（新增 "本关战况" 面板：血量/被发现/扣血/连击/老板体力/暴怒存活）
 - 修改：src/game/components/Game.tsx（+Level1Tutorial 挂载）
+
+---
+Task ID: 22 (bug fix round) — COMPLETION
+Agent: main (orchestrator)
+Task: Fix boss walk animation, fix patrol route (random waypoints + return home), fix FPS mode weapon switching (3 weapons, keys 1/2/3)
+
+## 项目当前状态描述/判断
+用户报告 3 个问题：1) Boss 巡查时没有走路动画；2) 巡查路线固定不随机且看不到移动；3) FPS 彩蛋模式只有一种武器，要求三种武器随机分配 + 1/2/3 键切换。已全部修复并验证。
+
+## 当前目标/已完成的修改/验证结果
+
+### Bug 修复
+
+1. **Boss 走路动画失效**：
+   - 根因：`moveAlongRoute` 设置腿/臂旋转后，`applySittingPose(this.sitBlend)` 在 update 末尾覆盖了这些旋转。即使 `sitting=false`，sitBlend 平滑过渡时仍会重置腿臂。
+   - 修复：在 sit/stand blend 逻辑中，仅在 `sitting=true` 且 `sitBlend > 0.01` 时调用 `applySittingPose`；过渡期（sit→stand）只调整 bodyGroup.position.y，不锁定腿臂；完全站立时重置 bodyGroup.position.y=0。
+   - 验证：强制巡逻后 walkPhase 从 0 增长到 51+，leftLeg/rightLeg rotation.x 在 ±0.6 间交替（正弦步态）✓
+
+2. **巡查路线固定且 Boss 不移动**：
+   - 根因 A：巡查路线硬编码为固定 5 个点。
+   - 修复 A：新增 12 个候选巡查点（覆盖房间各区域），每次随机选 3-5 个不重复点，组成 home→stops→home 路线。
+   - 根因 B：`moveAlongRoute` 使用 `WORLD.bossRadius`(0.7) 做碰撞检测，但 Boss 起始位置(z=-5.8)与老板桌(z=-6.1~-7.5)重叠，导致任何移动尝试都被判定为碰撞→滑动失败→patrolIdx 递增→瞬间跳过所有点。
+   - 修复 B：新增 `collidesAtRadius(x, z, colliders, r)` 方法，巡查时使用更小的半径 0.35，让 Boss 能在桌椅间穿行；到达距离阈值从 0.2 调到 0.3。
+   - 验证：强制巡查后 Boss 位置从 (0,-5.8) 移动到 (3.28, 3.91)，patrolIdx 从 0→2→3 递增，VLM 确认 "boss is standing, walking/moving, away from the desk area" ✓
+
+3. **FPS 模式武器切换**：
+   - 根因：`onKey` 只处理 Escape，不处理数字键。虽然 `setWeapon` 方法存在且有 `rebuildWeaponMesh`，但没有键绑定。
+   - 修复：在 `onKey` 中新增 1/2/3 键分别调用 `setWeapon("laser"/"rocket"/"grenade")`。
+   - 验证：按 2 → weapon 变为 rocket ✓；按 3 → weapon 变为 grenade ✓；VLM 确认武器切换面板高亮正确武器 ✓
+   - UI 增强：FPSHUD 新增右下角武器切换面板（3 个武器图标 + 数字键标签 + 当前武器高亮），底部提示新增 "🔢 按 1/2/3 切换武器"。
+
+### 验证结果（agent-browser + VLM）
+- 走路动画：walkPhase 0→51+，leftLeg/rightLeg rotation 在 ±0.6 交替 ✓
+- 巡查移动：Boss 位置从 (0,-5.8) 移动到 (3.28,3.91)，VLM 确认 "standing, walking, away from desk" ✓
+- 随机路线：每次巡查生成不同路线（3-5 个随机点），patrolRouteLen 5-7 ✓
+- FPS 武器切换：按 1/2/3 切换 laser/rocket/grenade，UI 高亮正确 ✓
+- Lint 0 错误，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless 环境 pointer lock 不可用**（同前轮，FPS 瞄准受限）
+2. **巡查碰撞半径较小**(0.35)：Boss 可能视觉上"贴近"家具，但不会穿模
+3. **检测方向**：前轮已修复（检测始终在 Boss 正前方半圆），本轮未改动
+
+## 文件清单（本轮修改）
+- 修改：src/game/engine/Boss.ts（sit/stand blend 不覆盖走路动画，generatePatrolRoute 随机路线，moveAlongRoute 使用 collidesAtRadius(0.35)，移除旧 collidesAt）
+- 修改：src/game/engine/FPSMode.ts（onKey 新增 1/2/3 武器切换）
+- 修改：src/game/components/FPSHUD.tsx（+右下角武器切换面板 +底部 1/2/3 切换提示）

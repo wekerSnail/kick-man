@@ -1153,14 +1153,38 @@ export class Boss {
     ]);
   }
 
+  // Candidate patrol waypoints scattered around the office room.
+  // Boss randomly picks a subset to visit, then returns home.
+  private static PATROL_WAYPOINTS: { x: number; z: number }[] = [
+    { x: -4, z: -2 },   // left-back (near player cubicle desk)
+    { x: -4, z: 4 },    // left-front
+    { x: 4, z: 4 },     // right-front
+    { x: 4, z: -2 },    // right-back
+    { x: -6, z: 0 },    // far left (cabinets)
+    { x: 6, z: 0 },     // far right
+    { x: 0, z: 3 },     // center-front
+    { x: -2, z: 6 },    // front-left corner
+    { x: 2, z: 6 },     // front-right corner
+    { x: -5, z: -5 },   // back-left near boss desk
+    { x: 5, z: -5 },    // back-right near boss desk
+    { x: 0, z: 0 },     // center
+  ];
+
   private generatePatrolRoute() {
-    // walk a route around the office and back
+    // Randomly pick 3-5 waypoints from the candidate list (no repeats),
+    // then append home to return.
+    const pool = [...Boss.PATROL_WAYPOINTS];
+    const numStops = 3 + Math.floor(Math.random() * 3); // 3..5 stops
+    const stops: THREE.Vector3[] = [];
+    for (let i = 0; i < numStops && pool.length > 0; i++) {
+      const idx = Math.floor(Math.random() * pool.length);
+      const wp = pool.splice(idx, 1)[0];
+      stops.push(new THREE.Vector3(wp.x, 0, wp.z));
+    }
+    // route: home → stops... → home
     this.patrolRoute = [
       new THREE.Vector3(this.homeX, 0, this.homeZ),
-      new THREE.Vector3(-4, 0, -2),
-      new THREE.Vector3(-4, 0, 4),
-      new THREE.Vector3(4, 0, 4),
-      new THREE.Vector3(4, 0, -2),
+      ...stops,
       new THREE.Vector3(this.homeX, 0, this.homeZ),
     ];
   }
@@ -1256,7 +1280,17 @@ export class Boss {
     // sit/stand blend
     const targetSit = this.sitting ? 1 : 0;
     this.sitBlend += (targetSit - this.sitBlend) * Math.min(1, dt * 8);
-    this.applySittingPose(this.sitBlend);
+    // Only apply sitting pose when actually sitting. When walking (patrol/distract),
+    // the walk animation in moveAlongRoute controls legs/arms, so we must not override.
+    if (this.sitBlend > 0.01 && this.sitting) {
+      this.applySittingPose(this.sitBlend);
+    } else if (this.sitBlend > 0.01) {
+      // transitioning from sit to stand — apply blend for body Y only, don't lock legs
+      this.bodyGroup.position.y = THREE.MathUtils.lerp(0, -0.15, this.sitBlend);
+    } else {
+      // fully standing — reset body Y
+      this.bodyGroup.position.y = 0;
+    }
 
     // vision cone visualization (after facing/position updated)
     this.updateVisionCone();
@@ -1653,7 +1687,7 @@ export class Boss {
     const dx = target.x - this.x;
     const dz = target.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist < 0.2) {
+    if (dist < 0.3) {
       this.patrolIdx += forward ? 1 : -1;
       if (this.patrolIdx < 0) this.patrolIdx = 0;
       if (this.patrolIdx >= this.patrolRoute.length) {
@@ -1664,13 +1698,13 @@ export class Boss {
     const step = Math.min(dist, speed * ctx.dt);
     let nx = this.x + (dx / dist) * step;
     let nz = this.z + (dz / dist) * step;
-    // simple collision: if blocked, skip
-    const blocked = this.collidesAt(nx, nz, ctx.colliders);
+    // collision check with smaller patrol radius (boss can navigate tight spaces)
+    const blocked = this.collidesAtRadius(nx, nz, ctx.colliders, 0.35);
     if (blocked) {
       // try sliding
-      if (!this.collidesAt(nx, this.z, ctx.colliders)) {
+      if (!this.collidesAtRadius(nx, this.z, ctx.colliders, 0.35)) {
         nz = this.z;
-      } else if (!this.collidesAt(this.x, nz, ctx.colliders)) {
+      } else if (!this.collidesAtRadius(this.x, nz, ctx.colliders, 0.35)) {
         nx = this.x;
       } else {
         // stuck — advance waypoint
@@ -1690,8 +1724,7 @@ export class Boss {
     this.rightArm.rotation.x = Math.sin(this.walkPhase) * 0.4;
   }
 
-  private collidesAt(x: number, z: number, colliders: Collider[]): boolean {
-    const r = WORLD.bossRadius;
+  private collidesAtRadius(x: number, z: number, colliders: Collider[], r: number): boolean {
     for (const c of colliders) {
       if (
         x + r > c.minX &&

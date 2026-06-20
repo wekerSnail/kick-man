@@ -70,6 +70,35 @@ export function FPSHUD() {
         </div>
       )}
 
+      {/* Bottom right: weapon switcher (1/2/3) */}
+      <div className="absolute bottom-4 right-4 bg-black/60 backdrop-blur-md rounded-xl p-2 border border-white/10">
+        <div className="text-[9px] uppercase tracking-wider text-white/40 mb-1.5 text-center">
+          切换武器
+        </div>
+        <div className="flex gap-1.5">
+          {(["laser", "rocket", "grenade"] as const).map((wk, i) => {
+            const info = WEAPON_LABEL[wk];
+            const isActive = weapon === wk;
+            return (
+              <div
+                key={wk}
+                className={`relative w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-all ${
+                  isActive
+                    ? "border-amber-400 bg-amber-400/20 scale-105"
+                    : "border-white/15 bg-white/5 opacity-60"
+                }`}
+              >
+                <span className="absolute top-0.5 left-1 text-[9px] text-white/50 font-mono">
+                  {i + 1}
+                </span>
+                <span className="text-xl leading-none">{info.icon}</span>
+                <span className="text-[9px] text-white/70 mt-0.5">{info.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Boss dialogue */}
       {dialogue && (
         <div className="absolute top-1/3 left-1/2 -translate-x-1/2 pointer-events-none">
@@ -82,6 +111,9 @@ export function FPSHUD() {
       {/* Bottom hint */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-center text-white/50 text-xs">
         <p>🖱️ 点击锁定鼠标 · 鼠标移动瞄准 · 左键射击 · ESC 退出锁定</p>
+        <p className="text-amber-300/80 mt-1">
+          🔢 按 1/2/3 切换武器（激光枪/火箭炮/手榴弹）
+        </p>
         {weapon === "grenade" && (
           <p className="text-amber-300/80 mt-1">
             💣 鼠标上下调整投掷弧度，瞄准辅助线显示落点
