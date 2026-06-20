@@ -1620,6 +1620,8 @@ export class GameEngine {
         this.store.unlockAchievement("weapon_master", "武器行者：使用武器命中");
         this.checkLevelComplete();
       }
+      // consume weapon after use (whether hit or miss, the swing is done)
+      this.consumeEquippedWeapon();
     }
   }
 
