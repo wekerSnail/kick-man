@@ -457,7 +457,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     })),
   incCombo: () =>
     set((st) => {
-      const nc = st.currentCombo + 1;
+      const nc = Math.min(st.currentCombo + 1, 15);
       return { currentCombo: nc, comboMax: Math.max(st.comboMax, nc) };
     }),
   resetRunStats: () =>
@@ -605,6 +605,7 @@ const ACHIEVEMENT_ICONS: Record<string, string> = {
   perfect: "🛡️",
   combo5: "🔥",
   combo10: "💥",
+  combo15: "⚡",
   stealth: "🥷",
   speedrun: "⚡",
   first_blood: "🩸",

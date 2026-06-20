@@ -1079,6 +1079,7 @@ export class GameEngine {
     // combo achievements
     if (s.comboMax >= 5) s.unlockAchievement("combo5", "连击5次");
     if (s.comboMax >= 10) s.unlockAchievement("combo10", "连击大师：10连击");
+    if (s.comboMax >= 15) s.unlockAchievement("combo15", "连击宗师：15连击（上限）");
     // pacifist_kick — completed a level using only kicks (no weapons used)
     // tracked via this.usedWeaponThisLevel flag
     if (!this.usedWeaponThisLevel) s.unlockAchievement("pacifist_kick", "徒手行者：全程只用脚踹");
@@ -1631,12 +1632,12 @@ export class GameEngine {
       it.phase += dt * 2;
       it.mesh.position.y = it.baseY + Math.sin(it.phase) * 0.2;
       it.mesh.rotation.y += dt * 1.5;
-      // magnet effect: when player within 2.5u, drift item toward player
+      // magnet effect: when player within 1.8u, drift item toward player
       const dx = this.px - it.mesh.position.x;
       const dz = this.pz - it.mesh.position.z;
       const d = Math.sqrt(dx * dx + dz * dz);
-      if (d < 2.5 && d > 0.01) {
-        const pull = (1 - d / 2.5) * 2.5 * dt; // stronger when closer
+      if (d < 1.8 && d > 0.01) {
+        const pull = (1 - d / 1.8) * 1.5 * dt;
         it.mesh.position.x += (dx / d) * pull;
         it.mesh.position.z += (dz / d) * pull;
       }
