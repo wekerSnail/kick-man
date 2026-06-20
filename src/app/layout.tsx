@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "踹他一百下 · 办公室潜行动作游戏",
-  description: "趁老板不注意偷偷踹他！3D办公室潜行动作游戏，含FPS彩蛋模式。",
+  description: "趁神人不注意偷偷踹他！3D办公室潜行动作游戏，含FPS彩蛋模式。",
   keywords: ["3D游戏", "潜行游戏", "办公室", "Three.js", "Web游戏"],
   authors: [{ name: "Z.ai" }],
   icons: {

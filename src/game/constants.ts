@@ -100,7 +100,7 @@ export const CONSUMABLES: Record<ConsumableKind, ConsumableDef> = {
     duration: 0,
     spawnRate: 0.13,
     color: 0xfbbf24,
-    desc: "吸引老板前往噪音位置",
+    desc: "吸引神人前往噪音位置",
   },
   combo: {
     kind: "combo",
@@ -127,7 +127,7 @@ export const CONSUMABLES: Record<ConsumableKind, ConsumableDef> = {
     duration: 6,
     spawnRate: 0.12,
     color: 0x9ca3af,
-    desc: "在玩家位置制造烟雾区，老板无法透过烟雾检测",
+    desc: "在玩家位置制造烟雾区，神人无法透过烟雾检测",
   },
 };
 

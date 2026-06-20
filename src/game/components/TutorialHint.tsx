@@ -18,37 +18,37 @@ interface VariantInfo {
 const VARIANT_INFO: Record<string, VariantInfo> = {
   glasses: {
     icon: "🤓",
-    name: "戴眼镜的老板",
+    name: "戴眼镜的神人",
     color: "text-sky-300",
     bgGradient: "from-sky-950 via-slate-900 to-slate-900",
     borderColor: "border-sky-400/40",
-    description: "这位老板戴着厚厚的眼镜，视野范围更广（+40%），更远的距离就能发现你。",
+    description: "这位神人戴着厚厚的眼镜，视野范围更广（+40%），更远的距离就能发现你。",
     tip: "👉 半圆检测范围 5→7，回头检测 6→8，巡逻 7→8",
     weakness: "💡 烟雾弹、隐身药水、键盘盾都能有效对抗；藏身点依然有效",
   },
   coffee: {
     icon: "☕",
-    name: "喝咖啡的老板",
+    name: "喝咖啡的神人",
     color: "text-orange-300",
     bgGradient: "from-orange-950 via-amber-950 to-slate-900",
     borderColor: "border-orange-400/40",
-    description: "咖啡因让老板格外警觉！所有行为计时器额外加速 ×0.85，更频繁地回头/巡逻/开会。",
-    tip: "👉 老板动作更快，留给你的安全窗口更短",
+    description: "咖啡因让神人格外警觉！所有行为计时器额外加速 ×0.85，更频繁地回头/巡逻/开会。",
+    tip: "👉 神人动作更快，留给你的安全窗口更短",
     weakness: "💡 噪音器依然能干扰；加速鞋+隐身药水组合可以快速突袭",
   },
   headphones: {
     icon: "🎧",
-    name: "戴耳机的老板",
+    name: "戴耳机的神人",
     color: "text-purple-300",
     bgGradient: "from-purple-950 via-fuchsia-950 to-slate-900",
     borderColor: "border-purple-400/40",
-    description: "老板戴着耳机听音乐，完全免疫噪音器的干扰！但视野和正常一样。",
+    description: "神人戴着耳机听音乐，完全免疫噪音器的干扰！但视野和正常一样。",
     tip: "👉 噪音器对此变体无效，不要浪费道具",
     weakness: "💡 用烟雾弹挡视线、隐身药水穿检测区；咖啡杯、耳机让他偶尔分心",
   },
   rage: {
     icon: "😡",
-    name: "暴怒的老板",
+    name: "暴怒的神人",
     color: "text-red-300",
     bgGradient: "from-red-950 via-rose-950 to-slate-900",
     borderColor: "border-red-400/50",
@@ -95,7 +95,7 @@ export function TutorialHint() {
         {/* New variant badge */}
         <div className="flex items-center justify-center gap-2 mb-3 relative">
           <span className="text-[10px] uppercase tracking-widest text-white/60 bg-white/10 px-2 py-0.5 rounded-full border border-white/20">
-            新老板形态
+            新神人形态
           </span>
         </div>
 

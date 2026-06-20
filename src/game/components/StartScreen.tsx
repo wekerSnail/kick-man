@@ -59,7 +59,7 @@ export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSetti
           办公室潜行动作游戏 · 第三人称视角
         </p>
         <p className="text-white/50 text-sm mb-5">
-          趁老板不注意，偷偷靠近踹他！躲避视线、利用道具、完成踹击目标过关
+          趁神人不注意，偷偷靠近踹他！躲避视线、利用道具、完成踹击目标过关
         </p>
 
         {/* Progress summary (only if returning player) */}
@@ -194,11 +194,11 @@ export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSetti
             <div>
               <h3 className="text-amber-300 font-bold mb-1">🥷 潜行技巧</h3>
               <ul className="text-sm text-white/80 space-y-0.5">
-                <li>• 老板<b className="text-red-300">回头/被攻击后/巡逻</b>时会检测你</li>
+                <li>• 神人<b className="text-red-300">回头/被攻击后/巡逻</b>时会检测你</li>
                 <li>• 蹲在<b className="text-emerald-300">盆栽/书架/沙发</b>旁可隐藏</li>
                 <li>• 使用<b className="text-sky-300">隐身药水</b>免疫所有检测</li>
                 <li>• <b className="text-amber-300">键盘盾</b>被发现时只扣 0.5 血</li>
-                <li>• 老板<b className="text-purple-300">开会</b>时攻击会被格挡，武器被消耗！</li>
+                <li>• 神人<b className="text-purple-300">开会</b>时攻击会被格挡，武器被消耗！</li>
               </ul>
             </div>
             <div>
@@ -235,13 +235,13 @@ export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSetti
               </div>
             </div>
             <div className="text-xs text-purple-300/80 pt-1 border-t border-white/10">
-              💡 通关每关后可选择进入<b>彩蛋 FPS 模式</b>痛击老板 30 秒！
+              💡 通关每关后可选择进入<b>彩蛋 FPS 模式</b>痛击神人 30 秒！
             </div>
           </div>
         )}
 
         <p className="text-white/50 text-xs mt-6">
-          点击开始即视为同意被老板扣工资 · Powered by Three.js
+          点击开始即视为同意被神人扣工资 · Powered by Three.js
         </p>
       </div>
     </div>

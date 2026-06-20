@@ -94,7 +94,7 @@ export function HUD() {
       <div className="absolute top-14 right-2 sm:top-20 sm:right-3 pointer-events-auto bg-black/65 backdrop-blur-md rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5 border border-white/10 shadow-lg min-w-35 sm:min-w-50">
         {/* Boss state */}
         <div className="text-[8px] sm:text-[10px] uppercase tracking-wider text-white/50 mb-0.5 sm:mb-1">
-          老板状态
+          神人状态
         </div>
         <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
           <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${bossInfo.color} animate-pulse`} />
@@ -258,7 +258,7 @@ function BossVariantAndSuspicion() {
       {showHP && (
         <div className="mb-1 sm:mb-1.5">
           <div className="flex items-center justify-between text-[7px] sm:text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
-            <span>老板体力</span>
+            <span>神人体力</span>
             <span className="text-red-300 font-bold tabular-nums">
               {minimap.bossHP}<span className="text-white/40">/{minimap.bossMaxHP}</span>
             </span>

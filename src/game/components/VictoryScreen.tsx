@@ -73,7 +73,7 @@ export function VictoryScreen({
           通关大吉！
         </h1>
         <p className="text-xl text-white/80 mb-2">
-          你成功踹了老板 <b className="text-amber-300">一整百下</b>！
+          你成功踹了神人 <b className="text-amber-300">一整百下</b>！
         </p>
         <p className="text-white/60 mb-6">
           从此办公室再无人敢让你加班 — 你是真正的<b className="text-pink-300">办公室之神</b>。

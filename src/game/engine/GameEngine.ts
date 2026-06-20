@@ -236,7 +236,7 @@ export class GameEngine {
       onDetect: (amt, line) => this.onPlayerDetected(amt, line),
       onAttackBlocked: () => {
         audio.block();
-        this.store.pushToast("老板开会格挡了你的攻击！武器被消耗", "warn");
+        this.store.pushToast("神人开会格挡了你的攻击！武器被消耗", "warn");
         // consume the equipped weapon (the one used in the attack)
         if (this.attackWeapon) this.consumeEquippedWeapon();
       },
@@ -600,7 +600,7 @@ export class GameEngine {
     group.position.set(x, 0, z);
     this.scene.add(group);
     this.smokeClouds.push({ group, x, z, radius: 2.4, life: duration, maxLife: duration });
-    this.store.pushToast("烟雾弹！老板无法透过烟雾检测", "good");
+    this.store.pushToast("烟雾弹！神人无法透过烟雾检测", "good");
   }
 
   private updateSmokeClouds(dt: number) {
@@ -952,13 +952,13 @@ export class GameEngine {
     // only show banners during active gameplay (not during transitions/menus)
     if (this.screen !== "playing" || this.paused) return;
     const banners: Record<string, { text: string; icon: string; color: string }> = {
-      Patrol: { text: "老板开始巡逻！", icon: "⚠️", color: "bg-red-700/90 border-red-400" },
-      Meeting: { text: "老板开会中（攻击无效）", icon: "📅", color: "bg-purple-700/90 border-purple-400" },
-      LookingBack: { text: "老板回头看！", icon: "👀", color: "bg-amber-600/90 border-amber-300" },
-      Attacked: { text: "老板被惊动！", icon: "😡", color: "bg-red-600/90 border-red-300" },
-      Stunned: { text: "老板眩晕中！", icon: "💫", color: "bg-yellow-500/90 border-yellow-200" },
-      Distracted: { text: "老板被噪音吸引", icon: "❓", color: "bg-pink-600/90 border-pink-300" },
-      PhoneFlashing: { text: "老板手机响了", icon: "📱", color: "bg-sky-600/90 border-sky-300" },
+      Patrol: { text: "神人开始巡逻！", icon: "⚠️", color: "bg-red-700/90 border-red-400" },
+      Meeting: { text: "神人开会中（攻击无效）", icon: "📅", color: "bg-purple-700/90 border-purple-400" },
+      LookingBack: { text: "神人回头看！", icon: "👀", color: "bg-amber-600/90 border-amber-300" },
+      Attacked: { text: "神人被惊动！", icon: "😡", color: "bg-red-600/90 border-red-300" },
+      Stunned: { text: "神人眩晕中！", icon: "💫", color: "bg-yellow-500/90 border-yellow-200" },
+      Distracted: { text: "神人被噪音吸引", icon: "❓", color: "bg-pink-600/90 border-pink-300" },
+      PhoneFlashing: { text: "神人手机响了", icon: "📱", color: "bg-sky-600/90 border-sky-300" },
       Normal: { text: "", icon: "", color: "" },
     };
     const b = banners[state];
@@ -1950,7 +1950,7 @@ export class GameEngine {
     const isEnragedNow = this.boss.isEnraged();
     if (isEnragedNow && !this.wasEnragedLastFrame) {
       audio.rageRoar();
-      this.store.pushEventBanner("老板暴怒了！立即躲藏！", "🔥", "bg-red-800/95 border-red-300 animate-pulse");
+      this.store.pushEventBanner("神人暴怒了！立即躲藏！", "🔥", "bg-red-800/95 border-red-300 animate-pulse");
     }
     // enrage exit: count as a survival if player wasn't detected during the enrage
     if (!isEnragedNow && this.wasEnragedLastFrame) {

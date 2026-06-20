@@ -11,7 +11,7 @@ const SHORTCUT_GROUPS: ShortcutGroup[] = [
     title: "移动",
     icon: "🕹️",
     shortcuts: [
-      { key: "W", desc: "向前移动（朝向老板方向）" },
+      { key: "W", desc: "向前移动（朝向神人方向）" },
       { key: "A", desc: "向左移动" },
       { key: "S", desc: "向后移动" },
       { key: "D", desc: "向右移动" },
@@ -97,12 +97,12 @@ export function KeyboardHelp({ onClose }: { onClose: () => void }) {
             💡 潜行小贴士
           </div>
           <ul className="text-xs text-white/70 space-y-1 list-disc list-inside">
-            <li>老板地面有半透明扇形检测区，避开它</li>
+            <li>神人地面有半透明扇形检测区，避开它</li>
             <li>蹲盆栽/书架/沙发旁可隐藏（状态显示"隐藏中"）</li>
-            <li>被老板"回头看"时立即静止或躲藏</li>
+            <li>被神人"回头看"时立即静止或躲藏</li>
             <li>使用隐身药水可免疫所有检测 5 秒</li>
             <li>键盘盾被发现时只扣 0.5 血（而非 1 血）</li>
-            <li>老板开会时攻击会被格挡，武器被消耗！</li>
+            <li>神人开会时攻击会被格挡，武器被消耗！</li>
           </ul>
         </div>
 

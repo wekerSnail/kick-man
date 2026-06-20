@@ -81,7 +81,7 @@ export function PauseMenu({ onShowSettings }: { onShowSettings?: () => void }) {
             </div>
             {bossMaxHP > 1 && (
               <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
-                <span className="text-white/60">😡 老板体力</span>
+                <span className="text-white/60">😡 神人体力</span>
                 <span className="font-bold text-red-300">
                   {bossHP}/{bossMaxHP}
                 </span>

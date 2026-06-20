@@ -174,7 +174,7 @@ export function LevelTransition({
               </div>
               {level + 1 >= 3 && (
                 <div className="text-[11px] text-orange-300/80 mt-1.5">
-                  ⚠️ 难度提升：老板行为更频繁
+                  ⚠️ 难度提升：神人行为更频繁
                 </div>
               )}
             </div>
@@ -195,7 +195,7 @@ export function LevelTransition({
               </button>
             </div>
             <p className="text-white/40 text-xs mt-4 relative">
-              💡 FPS 模式可任意痛击老板 30 秒，无胜负压力
+              💡 FPS 模式可任意痛击神人 30 秒，无胜负压力
             </p>
             {fpsReward && (
               <div className="mt-2 px-3 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-sm animate-[popin_0.3s_ease-out]">

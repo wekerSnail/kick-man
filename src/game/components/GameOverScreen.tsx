@@ -37,12 +37,12 @@ export function GameOverScreen({
         <h2 className="text-4xl font-black mb-2 text-red-400 drop-shadow-[0_0_12px_rgba(248,113,113,0.6)]">
           游戏结束
         </h2>
-        <p className="text-white/60 mb-5">你被老板逮到了…</p>
+        <p className="text-white/60 mb-5">你被神人逮到了…</p>
 
         {/* Death dialogue */}
         <div className="bg-red-950/50 border border-red-500/20 rounded-xl p-4 mb-5">
           <div className="text-xs uppercase tracking-wider text-red-300/70 mb-1">
-            老板说
+            神人说
           </div>
           <div className="text-lg font-semibold text-white">
             💬 {deathDialogue || "今晚留下来加班"}
