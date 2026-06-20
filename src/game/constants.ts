@@ -120,6 +120,15 @@ export const CONSUMABLES: Record<ConsumableKind, ConsumableDef> = {
     color: 0xa16207,
     desc: "装备后可挡脸防御",
   },
+  smoke: {
+    kind: "smoke",
+    name: "烟雾弹",
+    icon: "💨",
+    duration: 6,
+    spawnRate: 0.12,
+    color: 0x9ca3af,
+    desc: "在玩家位置制造烟雾区，老板无法透过烟雾检测",
+  },
 };
 
 export const ALL_ITEM_KINDS: (WeaponKind | ConsumableKind)[] = [
@@ -132,6 +141,7 @@ export const ALL_ITEM_KINDS: (WeaponKind | ConsumableKind)[] = [
   "noise",
   "combo",
   "keyboard",
+  "smoke",
 ];
 
 // weighted random item kind (for spawning)
@@ -146,6 +156,7 @@ export function rollItemKind(): WeaponKind | ConsumableKind {
     { kind: "noise", w: CONSUMABLES.noise.spawnRate },
     { kind: "combo", w: CONSUMABLES.combo.spawnRate },
     { kind: "keyboard", w: CONSUMABLES.keyboard.spawnRate },
+    { kind: "smoke", w: CONSUMABLES.smoke.spawnRate },
   ];
   const total = entries.reduce((s, e) => s + e.w, 0);
   let r = Math.random() * total;

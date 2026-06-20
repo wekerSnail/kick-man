@@ -496,7 +496,8 @@ export class GameEngine {
       slot.kind === "invis" ||
       slot.kind === "noise" ||
       slot.kind === "combo" ||
-      slot.kind === "keyboard"
+      slot.kind === "keyboard" ||
+      slot.kind === "smoke"
     ) {
       this.useConsumable(slot.kind as ConsumableKind, index);
     }
@@ -532,7 +533,122 @@ export class GameEngine {
       // spawn noise at player position → distract boss
       this.boss.triggerDistracted(new THREE.Vector3(this.px, 0, this.pz));
       this.spawnNoiseBurst();
+    } else if (kind === "smoke") {
+      // create smoke cloud at player position
+      this.spawnSmokeCloud(this.px, this.pz, def.duration);
     }
+  }
+
+  // ===== Smoke cloud =====
+  private smokeClouds: { group: THREE.Group; x: number; z: number; radius: number; life: number; maxLife: number }[] = [];
+
+  private spawnSmokeCloud(x: number, z: number, duration: number) {
+    const group = new THREE.Group();
+    // multiple puffs (more, larger, more opaque for visibility)
+    for (let i = 0; i < 28; i++) {
+      const puff = new THREE.Mesh(
+        new THREE.SphereGeometry(0.5 + Math.random() * 0.4, 8, 6),
+        new THREE.MeshStandardMaterial({
+          color: 0xcccccc,
+          transparent: true,
+          opacity: 0.75,
+          depthWrite: false,
+          roughness: 1,
+          flatShading: true,
+        })
+      );
+      const ang = Math.random() * Math.PI * 2;
+      const r = Math.random() * 1.8;
+      puff.position.set(Math.cos(ang) * r, 0.6 + Math.random() * 1.6, Math.sin(ang) * r);
+      group.add(puff);
+    }
+    // dark base ring
+    const base = new THREE.Mesh(
+      new THREE.CircleGeometry(2.4, 28),
+      new THREE.MeshBasicMaterial({
+        color: 0x555555,
+        transparent: true,
+        opacity: 0.4,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      })
+    );
+    base.rotation.x = -Math.PI / 2;
+    base.position.y = 0.05;
+    group.add(base);
+    // central column marker (visible from afar)
+    const col = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.5, 2.0, 2.4, 16, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xaaaaaa,
+        transparent: true,
+        opacity: 0.35,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      })
+    );
+    col.position.y = 1.2;
+    group.add(col);
+    group.position.set(x, 0, z);
+    this.scene.add(group);
+    this.smokeClouds.push({ group, x, z, radius: 2.4, life: duration, maxLife: duration });
+    this.store.pushToast("烟雾弹！老板无法透过烟雾检测", "good");
+  }
+
+  private updateSmokeClouds(dt: number) {
+    for (let i = this.smokeClouds.length - 1; i >= 0; i--) {
+      const s = this.smokeClouds[i];
+      s.life -= dt;
+      const t = Math.max(0, s.life / s.maxLife);
+      // animate puffs (drift upward + swirl + fade)
+      s.group.children.forEach((child, idx) => {
+        if (idx < 28) {
+          // puff
+          child.position.y += dt * 0.12;
+          child.rotation.y += dt * 0.3;
+          const mat = (child as THREE.Mesh).material as THREE.MeshStandardMaterial;
+          mat.opacity = 0.75 * t;
+        }
+      });
+      // base ring (index 28) and column (index 29) fade
+      const baseMat = (s.group.children[28] as THREE.Mesh)?.material as THREE.MeshBasicMaterial;
+      if (baseMat) baseMat.opacity = 0.4 * t;
+      const colMat = (s.group.children[29] as THREE.Mesh)?.material as THREE.MeshBasicMaterial;
+      if (colMat) colMat.opacity = 0.35 * t;
+      if (s.life <= 0) {
+        this.scene.remove(s.group);
+        s.group.traverse((o) => {
+          if (o instanceof THREE.Mesh) {
+            o.geometry.dispose();
+            (o.material as THREE.Material).dispose();
+          }
+        });
+        this.smokeClouds.splice(i, 1);
+      }
+    }
+  }
+
+  // check if line-of-sight from boss to player is blocked by smoke
+  private isPlayerObscuredBySmoke(): boolean {
+    for (const s of this.smokeClouds) {
+      // smoke blocks if either boss or player is inside, OR the segment boss→player passes through the cloud circle
+      const bx = this.boss.x;
+      const bz = this.boss.z;
+      // distance from cloud center to the line segment boss→player
+      const dx = this.px - bx;
+      const dz = this.pz - bz;
+      const lenSq = dx * dx + dz * dz;
+      if (lenSq < 0.001) return true;
+      const t = Math.max(0, Math.min(1, ((s.x - bx) * dx + (s.z - bz) * dz) / lenSq));
+      const cx = bx + t * dx;
+      const cz = bz + t * dz;
+      const dToCloud = Math.sqrt((cx - s.x) ** 2 + (cz - s.z) ** 2);
+      if (dToCloud < s.radius) return true;
+      // also if player is inside smoke
+      const dPlayer = Math.sqrt((this.px - s.x) ** 2 + (this.pz - s.z) ** 2);
+      if (dPlayer < s.radius) return true;
+    }
+    return false;
   }
 
   private showShieldMesh(show: boolean) {
@@ -687,6 +803,7 @@ export class GameEngine {
       return;
     }
     audio.throwRelease();
+    this.usedWeaponThisLevel = true;
     // spawn projectile
     const def = WEAPONS[w];
     const mesh = this.makeWeaponMesh(w);
@@ -827,7 +944,11 @@ export class GameEngine {
     if (this.screen !== "playing") return;
     audio.detected();
     this.detectFlashTimer = 0.6;
-    // keyboard shield reduction already handled in boss (passes 0.5)
+    // track stats
+    this.store.incDetection();
+    this.store.incDamage(amount);
+    // detection breaks combo
+    this.store.setCombo(0);
     const newHp = Math.max(0, this.store.hp - amount);
     this.store.setHp(newHp);
     this.store.setDeathDialogue(line);
@@ -854,15 +975,56 @@ export class GameEngine {
     this.paused = true;
     // record best time for this level
     this.store.setBestTime(this.store.level, this.levelTime);
+    // compute star rating
+    const stars = this.computeStars();
+    this.store.setStars(this.store.level, stars);
+    // build last level result
+    this.store.setLastLevelResult({
+      level: this.store.level,
+      stars,
+      time: this.levelTime,
+      detections: this.store.detectionsThisLevel,
+      damage: this.store.damageThisLevel,
+    });
+    // check achievements
+    this.checkAchievements(stars);
     if (this.store.level >= LEVELS.length) {
       // victory
       audio.victory();
+      this.store.unlockAchievement("level7", "通关大吉");
       this.screen = "victory";
       this.store.setScreen("victory");
     } else {
       this.store.setScreen("level-transition");
     }
   }
+
+  // Star rating: 3 stars = no damage + no detection; 2 stars = ≤1 detection or damage; 1 star = completed
+  private computeStars(): number {
+    const dmg = this.store.damageThisLevel;
+    const det = this.store.detectionsThisLevel;
+    if (dmg === 0 && det === 0) return 3;
+    if (det <= 1 && dmg <= 1) return 2;
+    return 1;
+  }
+
+  private checkAchievements(stars: number) {
+    const s = this.store;
+    // first blood — first successful kick (already done in performHitCheck)
+    // perfect — 3 stars on any level
+    if (stars === 3) s.unlockAchievement("perfect", "完美通关：零伤害零发现");
+    // stealth — completed a level with 0 detections
+    if (s.detectionsThisLevel === 0) s.unlockAchievement("stealth", "潜行达人：零发现");
+    // speedrun — level 1 under 30s
+    if (s.level === 1 && this.levelTime < 30) s.unlockAchievement("speedrun", "速通达人：30秒内通关");
+    // combo achievements
+    if (s.comboMax >= 5) s.unlockAchievement("combo5", "连击5次");
+    if (s.comboMax >= 10) s.unlockAchievement("combo10", "连击大师：10连击");
+    // pacifist_kick — completed a level using only kicks (no weapons used)
+    // tracked via this.usedWeaponThisLevel flag
+    if (!this.usedWeaponThisLevel) s.unlockAchievement("pacifist_kick", "徒手行者：全程只用脚踹");
+  }
+  private usedWeaponThisLevel = false;
 
   // ===== screen change from store (buttons) =====
   private onScreenChange(screen: string) {
@@ -899,6 +1061,9 @@ export class GameEngine {
     this.levelStartTime = performance.now() / 1000;
     this.screenShake = 0;
     this.hitFlashTimer = 0;
+    this.usedWeaponThisLevel = false;
+    // reset run stats
+    this.store.resetRunStats();
     this.hitFlashLight.intensity = 0;
     this.tShield = 0;
     this.showShieldMesh(false);
@@ -921,8 +1086,20 @@ export class GameEngine {
       (p.mesh.material as THREE.Material).dispose();
     }
     this.projectiles = [];
-    // boss reset
-    this.boss.reset();
+    // clear smoke clouds
+    for (const s of this.smokeClouds) {
+      this.scene.remove(s.group);
+      s.group.traverse((o) => {
+        if (o instanceof THREE.Mesh) {
+          o.geometry.dispose();
+          (o.material as THREE.Material).dispose();
+        }
+      });
+    }
+    this.smokeClouds = [];
+    // boss reset with difficulty scaling (higher levels = faster boss)
+    this.boss.setDifficulty(level);
+    this.boss.reset(level);
     // store
     this.store.setKicks(0);
     this.store.setHp(MAX_HP);
@@ -1086,6 +1263,7 @@ export class GameEngine {
       this.updateItems(dt);
       this.updateProjectiles(dt);
       this.updateParticles(dt);
+      this.updateSmokeClouds(dt);
       this.updateBoss(dt);
       this.updateStatusEffects(dt);
       this.updateHUD(dt);
@@ -1216,20 +1394,24 @@ export class GameEngine {
       const ok = this.boss.triggerAttacked(1, 0, this.makeBossCtx());
       if (ok) {
         this.store.setKicks(this.store.kicks + 1);
+        this.store.incCombo();
+        // first blood achievement
+        this.store.unlockAchievement("first_blood", "初次踹击：开门红");
         this.checkLevelComplete();
       }
     } else if (this.attackType === "swing" && this.attackWeapon) {
       const def = WEAPONS[this.attackWeapon];
       audio.kickHit();
+      this.usedWeaponThisLevel = true;
       // swing hit: stun time if not 0 (we use def.stun for stun-from-swing)
       const ok = this.boss.triggerAttacked(def.hits, 0, this.makeBossCtx());
       if (ok) {
         // award hits count
         this.store.setKicks(this.store.kicks + def.hits);
+        this.store.incCombo();
+        // weapon master — used a weapon successfully
+        this.store.unlockAchievement("weapon_master", "武器行者：使用武器命中");
         this.checkLevelComplete();
-        // consume weapon after swing (per design: swing doesn't consume; throw consumes)
-        // Actually design: "投掷后武器消失；被老板开会技能挡下时武器也会被消耗"
-        // Swing does NOT consume weapon. Keep it.
       }
     }
   }
@@ -1354,12 +1536,14 @@ export class GameEngine {
     const hidden = this.isPlayerHidden();
     const invisible = this.tInvis > 0;
     const shield = this.tShield > 0;
+    const obscured = this.isPlayerObscuredBySmoke();
     return {
       playerPos: new THREE.Vector3(this.px, 0, this.pz),
       playerHidden: hidden,
       playerInvisible: invisible,
       playerShield: shield,
       playerShieldUsed: this.shieldUsedThisCycle,
+      playerObscuredBySmoke: obscured,
       isPlayerAttacking: this.attackAnim > 0,
       dt: dt,
       time: performance.now() / 1000,

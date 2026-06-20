@@ -9,6 +9,7 @@ export interface BossContext {
   playerInvisible: boolean;
   playerShield: boolean; // keyboard shield active
   playerShieldUsed: boolean; // already used this detection cycle
+  playerObscuredBySmoke: boolean; // smoke blocks line of sight
   isPlayerAttacking: boolean; // for attack-block during meeting
   dt: number;
   time: number;
@@ -747,22 +748,31 @@ export class Boss {
     this.patrolTimer -= ctx.dt;
 
     if (this.phoneTimer <= 0) {
-      this.phoneTimer = 8 + Math.random() * 5;
+      this.phoneTimer = (8 + Math.random() * 5) * this.difficultyScale();
       this.setState("PhoneFlashing");
       this.startSequence([
         { name: "pf_phone", dur: 2 + Math.random() * 3 },
       ]);
     } else if (this.meetingTimer <= 0 && Math.random() < 0.5) {
-      this.meetingTimer = 12 + Math.random() * 8;
+      this.meetingTimer = (12 + Math.random() * 8) * this.difficultyScale();
       this.setState("Meeting");
       this.startSequence([
         { name: "m_meeting", dur: 12 + Math.random() * 8 },
       ]);
     } else if (this.patrolTimer <= 0) {
-      this.patrolTimer = 20 + Math.random() * 15;
+      this.patrolTimer = (20 + Math.random() * 15) * this.difficultyScale();
       this.setState("Patrol");
       this.startPatrolSequence();
     }
+  }
+
+  // difficulty scale factor (set by GameEngine via setDifficulty)
+  private _difficulty = 1;
+  setDifficulty(d: number) {
+    this._difficulty = d;
+  }
+  private difficultyScale(): number {
+    return Math.max(0.55, 1.05 - this._difficulty * 0.07);
   }
 
   private halfCircleDetect(ctx: BossContext) {
@@ -776,6 +786,7 @@ export class Boss {
     if (dz < 0.2) return; // only +Z hemisphere
     // check exemptions
     if (ctx.playerInvisible) return;
+    if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
     if (ctx.playerShield) {
       // keyboard shield: detected but only -0.5
@@ -847,6 +858,7 @@ export class Boss {
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > range) return;
     if (ctx.playerInvisible) return;
+    if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
     if (ctx.playerShield) {
       this.cb.onDetect(0.5, BOSS_LINES.attackedKeyboard);
@@ -894,6 +906,7 @@ export class Boss {
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > range) return;
     if (ctx.playerInvisible) return;
+    if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
     this._attackedFound = true;
     if (ctx.playerShield) {
@@ -1036,7 +1049,7 @@ export class Boss {
     );
     const dist = toPlayer.length();
     if (dist > 7) return;
-    if (ctx.playerInvisible || ctx.playerHidden) return;
+    if (ctx.playerInvisible || ctx.playerHidden || ctx.playerObscuredBySmoke) return;
     // cone
     const fwd = this.forward;
     const dot = toPlayer.normalize().dot(fwd);
@@ -1138,7 +1151,8 @@ export class Boss {
   }
 
   // reset to Normal (for level restart)
-  reset() {
+  // difficulty: 1 = normal. Higher levels → more frequent boss actions.
+  reset(difficulty = 1) {
     this.x = this.homeX;
     this.z = this.homeZ;
     this.facingY = Math.PI;
@@ -1146,9 +1160,12 @@ export class Boss {
     this.sitting = true;
     this.stunRemaining = 0;
     this._attackedFound = false;
-    this.phoneTimer = 6 + Math.random() * 4;
-    this.meetingTimer = 12 + Math.random() * 6;
-    this.patrolTimer = 20 + Math.random() * 10;
+    // difficulty scaling: timers shrink with higher difficulty
+    // difficulty 1 → 0.85x (slightly slower), difficulty 7 → 0.55x (much faster)
+    const scale = Math.max(0.55, 1.05 - difficulty * 0.07);
+    this.phoneTimer = (6 + Math.random() * 4) * scale;
+    this.meetingTimer = (12 + Math.random() * 6) * scale;
+    this.patrolTimer = (20 + Math.random() * 10) * scale;
     this.detectCooldown = 0;
     this.hideDialogue();
     this.starsSprite.visible = false;

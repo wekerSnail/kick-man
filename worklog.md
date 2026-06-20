@@ -202,3 +202,98 @@ Task: QA pass + implement new features
 - 修改：src/game/components/Game.tsx（挂载 Minimap/PauseMenu/TouchControls）
 - 修改：src/game/components/HUD.tsx（关卡计时器、操作提示）
 - 修改：src/game/components/StartScreen.tsx（徽章+对比度优化）
+
+---
+Task ID: 16 (cron review #2) — COMPLETION
+Agent: main (orchestrator)
+Task: QA pass + implement star rating, achievements, difficulty scaling, smoke bomb, combo counter, HUD polish
+
+## 项目当前状态描述/判断
+游戏核心功能完整稳定（Tasks 1-15 已完成并验证）。本轮 cron 审查未发现 bug，新增 6 项功能：星级评分、成就系统、难度递增、烟雾弹道具、连击计数器、HUD 精美化。所有功能经 agent-browser + VLM 验证通过。Lint 0 错误，dev server 运行正常，无运行时异常。
+
+## 当前目标/已完成的修改/验证结果
+
+### 新增功能
+
+1. **星级评分系统**（1-3 星）：
+   - 3 星 = 零伤害 + 零发现
+   - 2 星 = ≤1 次发现或 ≤1 伤害
+   - 1 星 = 通关
+   - 关卡过渡界面显示 3 颗星动画（依次点亮）+ 通关用时/发现次数/扣血统计
+   - 验证：隐身通关 → 3 星 + 完美通关成就 ✓
+
+2. **成就系统**（10 个成就）：
+   - first_blood 初次踹击 🩸
+   - perfect 完美通关 🛡️
+   - stealth 潜行达人 🥷
+   - speedrun 速通达人（30s）⚡
+   - combo5 连击5次 🔥
+   - combo10 连击大师 💥
+   - weapon_master 武器行者 🏏
+   - pacifist_kick 徒手行者 🦵
+   - level7 通关大吉 👑
+   - no_items 🎒（未实现触发，预留）
+   - 解锁时右上角弹出金色成就 toast（3.5s 滑入滑出）
+   - 开始界面显示总星数 + 成就数（回头玩家可见）
+   - 验证：3 星通关一次解锁 5 个成就（first_blood/perfect/stealth/speedrun/pacifist_kick）✓
+
+3. **难度递增**：
+   - Boss 计时器随关卡缩短（scale = max(0.55, 1.05 - level*0.07)）
+   - 第1关 0.98x，第7关 0.56x（Boss 行为更频繁）
+   - 关卡过渡界面第3关起显示"⚠️ 难度提升"提示
+   - Boss.setDifficulty() + reset(difficulty) 方法
+
+4. **烟雾弹道具**（新道具类型）：
+   - 在玩家位置生成 28 个灰色烟雾团 + 地面暗环 + 中央烟柱
+   - 持续 6 秒，逐渐淡出
+   - 阻挡 Boss 视线：halfCircleDetect/lookingDetect/attackedDetect/patrolDetect 均检查 playerObscuredBySmoke
+   - 线段相交算法判断烟雾是否遮挡 Boss→玩家视线
+   - 验证：玩家在检测区内使用烟雾 → 4s 后 hp=3, detections=0（未被发现）✓
+   - VLM 确认烟雾视觉效果清晰可见
+
+5. **连击计数器**：
+   - 每次成功命中 +1，被发现时归零
+   - HUD 显示：combo≥2 时顶部中央弹出连击数
+   - 4 个等级配色：normal(蓝)/good(绿)/epic(橙)/legend(金紫渐变)
+   - 验证：连击手套+3次踢击 → combo=3, comboMax=3 ✓
+
+6. **HUD 精美化**：
+   - 关卡过渡界面：渐变背景、星标动画、统计网格、难度提示、按钮阴影发光
+   - 开始界面：总星数+成就数卡片（回头玩家）、7关徽章放大
+   - 成就 toast：金色渐变 + 图标 + 滑入动画
+
+### 验证结果（agent-browser + VLM）
+- 3 星通关：stars=3, 5 成就解锁 ✓
+- 连击计数器：combo=3, comboMax=3 ✓
+- 烟雾弹：obscured=true, hp=3, detections=0 ✓
+- 关卡过渡：3 星显示 + 统计 + 难度提示 ✓
+- VLM 评分：关卡过渡 8/10，HUD 7/10，烟雾效果清晰可见
+- Lint 0 错误，无运行时异常，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless 环境 pointer lock 不可用**（同上轮，已通过 fallback 缓解）
+2. **性能**：headless ~16fps（无 GPU），真实浏览器 60fps
+3. **no_items 成就未触发**：预留接口，逻辑未实现（需要跟踪是否使用过道具）
+4. **移动端未真机测试**：TouchControls 已实现但仅桌面验证
+
+## 建议下一阶段优先事项
+1. **Boss 多形态**：高关卡 Boss 不同外观/技能（戴眼镜看的更远、喝咖啡更警觉、戴耳机听不到噪音器）
+2. **更多成就**：no_items（不用道具通关）、smoke_master（用烟雾弹避开5次检测）
+3. **音效增强**：Boss 警觉时背景音乐变奏、连击时音调升高
+4. **评分排行榜**：本地存储最佳成绩，开始界面显示
+5. **道具图鉴**：收集到的道具/武器有图鉴查看
+6. **关卡选择**：通关后可重玩任意关卡刷星
+7. **真机移动端测试**
+8. **移除 window.__engine debug hook**（生产）
+
+## 文件清单（本轮新增/修改）
+- 新增：src/game/components/AchievementToast.tsx
+- 新增：src/game/components/ComboCounter.tsx
+- 修改：src/game/types.ts（+smoke ConsumableKind）
+- 修改：src/game/constants.ts（+smoke 道具定义、rollItemKind）
+- 修改：src/game/store.ts（+stars/achievements/runStats/lastLevelResult 状态）
+- 修改：src/game/engine/GameEngine.ts（评分计算、成就检查、烟雾弹系统、连击追踪、难度同步、usedWeaponThisLevel）
+- 修改：src/game/engine/Boss.ts（difficulty scaling、playerObscuredBySmoke 检测豁免）
+- 修改：src/game/components/LevelTransition.tsx（星级显示+统计+难度提示+视觉升级）
+- 修改：src/game/components/StartScreen.tsx（总星数+成就数卡片）
+- 修改：src/game/components/Game.tsx（挂载 AchievementToast + ComboCounter）

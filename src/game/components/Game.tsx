@@ -13,6 +13,8 @@ import { Toasts } from "./Toasts";
 import { Minimap } from "./Minimap";
 import { PauseMenu } from "./PauseMenu";
 import { TouchControls } from "./TouchControls";
+import { AchievementToast } from "./AchievementToast";
+import { ComboCounter } from "./ComboCounter";
 
 export default function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,7 @@ export default function Game() {
           <HUD />
           <Minimap />
           <TouchControls />
+          <ComboCounter />
         </>
       )}
       {ready && screen === "start" && (
@@ -75,6 +78,9 @@ export default function Game() {
 
       {/* Pause menu overlay (works on top of playing screen) */}
       {ready && <PauseMenu />}
+
+      {/* Achievement unlock toasts (always available) */}
+      {ready && <AchievementToast />}
 
       <Toasts />
     </div>

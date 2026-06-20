@@ -2,9 +2,16 @@
 
 import { useState } from "react";
 import { LEVELS, WEAPONS, CONSUMABLES } from "../constants";
+import { useGameStore } from "../store";
 
 export function StartScreen({ onStart }: { onStart: () => void }) {
   const [showHelp, setShowHelp] = useState(false);
+  const stars = useGameStore((s) => s.stars);
+  const achievements = useGameStore((s) => s.achievements);
+  const totalStars = Object.values(stars).reduce((a, b) => a + b, 0);
+  const maxStars = LEVELS.length * 3;
+  const achievementCount = Object.values(achievements).filter(Boolean).length;
+  const hasProgress = totalStars > 0 || achievementCount > 0;
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] text-white">
       {/* animated bg shapes */}
@@ -33,9 +40,33 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
         <p className="text-white/70 text-lg mb-1">
           办公室潜行动作游戏 · 第三人称视角
         </p>
-        <p className="text-white/50 text-sm mb-8">
+        <p className="text-white/50 text-sm mb-5">
           趁老板不注意，偷偷靠近踹他！躲避视线、利用道具、完成踹击目标过关
         </p>
+
+        {/* Progress summary (only if returning player) */}
+        {hasProgress && (
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="bg-black/40 backdrop-blur-sm rounded-xl px-4 py-2 border border-amber-400/20 flex items-center gap-2">
+              <span className="text-xl">⭐</span>
+              <div className="text-left">
+                <div className="text-[10px] uppercase tracking-wider text-white/50 leading-none">总星数</div>
+                <div className="text-lg font-bold tabular-nums leading-tight">
+                  {totalStars}<span className="text-white/40 text-xs">/{maxStars}</span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-black/40 backdrop-blur-sm rounded-xl px-4 py-2 border border-purple-400/20 flex items-center gap-2">
+              <span className="text-xl">🏆</span>
+              <div className="text-left">
+                <div className="text-[10px] uppercase tracking-wider text-white/50 leading-none">成就</div>
+                <div className="text-lg font-bold tabular-nums leading-tight">
+                  {achievementCount}<span className="text-white/40 text-xs">/10</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col items-center gap-3 mb-8">
           <button

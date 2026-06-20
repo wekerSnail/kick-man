@@ -25,7 +25,8 @@ export type ConsumableKind =
   | "invis" // 隐身药水
   | "noise" // 噪音器
   | "combo" // 连击手套
-  | "keyboard"; // 键盘盾
+  | "keyboard" // 键盘盾
+  | "smoke"; // 烟雾弹
 
 export type ItemKind = WeaponKind | ConsumableKind;
 

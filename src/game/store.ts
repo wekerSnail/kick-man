@@ -120,6 +120,33 @@ interface GameState {
   // best level times (per level, in seconds; lower is better)
   bestTimes: Record<number, number>;
   setBestTime: (level: number, time: number) => void;
+
+  // star ratings per level (1-3 stars)
+  stars: Record<number, number>;
+  setStars: (level: number, stars: number) => void;
+
+  // run statistics (reset each level)
+  detectionsThisLevel: number; // times caught/detected
+  damageThisLevel: number; // hp lost
+  comboMax: number; // max consecutive hits without miss
+  currentCombo: number;
+  incDetection: () => void;
+  incDamage: (amt: number) => void;
+  setCombo: (c: number) => void;
+  incCombo: () => void;
+  resetRunStats: () => void;
+
+  // achievements
+  achievements: Record<string, boolean>; // id -> unlocked
+  unlockAchievement: (id: string, name: string) => void;
+  // pending achievement toast (engine → UI)
+  achievementQueue: { id: string; name: string; icon: string }[];
+  pushAchievement: (a: { id: string; name: string; icon: string }) => void;
+  shiftAchievement: () => void;
+
+  // last level result (for level-transition screen)
+  lastLevelResult: { level: number; stars: number; time: number; detections: number; damage: number } | null;
+  setLastLevelResult: (r: { level: number; stars: number; time: number; detections: number; damage: number } | null) => void;
 }
 
 let toastId = 1;
@@ -277,7 +304,76 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
       return {};
     }),
+
+  stars: {},
+  setStars: (level, starCount) =>
+    set((st) => {
+      const prev = st.stars[level] || 0;
+      if (starCount > prev) {
+        return { stars: { ...st.stars, [level]: starCount } };
+      }
+      return {};
+    }),
+
+  detectionsThisLevel: 0,
+  damageThisLevel: 0,
+  comboMax: 0,
+  currentCombo: 0,
+  incDetection: () => set((st) => ({ detectionsThisLevel: st.detectionsThisLevel + 1 })),
+  incDamage: (amt) => set((st) => ({ damageThisLevel: st.damageThisLevel + amt })),
+  setCombo: (c) =>
+    set((st) => ({
+      currentCombo: c,
+      comboMax: Math.max(st.comboMax, c),
+    })),
+  incCombo: () =>
+    set((st) => {
+      const nc = st.currentCombo + 1;
+      return { currentCombo: nc, comboMax: Math.max(st.comboMax, nc) };
+    }),
+  resetRunStats: () =>
+    set({
+      detectionsThisLevel: 0,
+      damageThisLevel: 0,
+      comboMax: 0,
+      currentCombo: 0,
+    }),
+
+  achievements: {},
+  unlockAchievement: (id, name) =>
+    set((st) => {
+      if (st.achievements[id]) return {};
+      return {
+        achievements: { ...st.achievements, [id]: true },
+        achievementQueue: [...st.achievementQueue, { id, name, icon: ACHIEVEMENT_ICONS[id] || "🏆" }],
+      };
+    }),
+  achievementQueue: [],
+  pushAchievement: (a) =>
+    set((st) => ({
+      achievementQueue: [...st.achievementQueue, a],
+    })),
+  shiftAchievement: () =>
+    set((st) => ({ achievementQueue: st.achievementQueue.slice(1) })),
+
+  lastLevelResult: null,
+  setLastLevelResult: (r) => set({ lastLevelResult: r }),
 }));
+
+// Achievement icons
+const ACHIEVEMENT_ICONS: Record<string, string> = {
+  perfect: "🛡️",
+  combo5: "🔥",
+  combo10: "💥",
+  stealth: "🥷",
+  speedrun: "⚡",
+  first_blood: "🩸",
+  weapon_master: "🏏",
+  pacifist_kick: "🦵",
+  no_items: "🎒",
+  level7: "👑",
+};
+
 
 // helper export for components
 const WEAPON_KINDS: WeaponKind[] = ["mace", "bat", "pan", "ruler"];
