@@ -4,14 +4,24 @@ import { useState } from "react";
 import { LEVELS, WEAPONS, CONSUMABLES } from "../constants";
 import { useGameStore } from "../store";
 
-export function StartScreen({ onStart }: { onStart: () => void }) {
+const VARIANT_FOR_LEVEL = (level: number): string => {
+  if (level >= 6) return "🎧";
+  if (level === 5) return "☕";
+  if (level >= 3) return "🤓";
+  return "👨‍💼";
+};
+
+export function StartScreen({ onStart, onSelectLevel }: { onStart: () => void; onSelectLevel?: (level: number) => void }) {
   const [showHelp, setShowHelp] = useState(false);
+  const [showLevelSelect, setShowLevelSelect] = useState(false);
   const stars = useGameStore((s) => s.stars);
   const achievements = useGameStore((s) => s.achievements);
   const totalStars = Object.values(stars).reduce((a, b) => a + b, 0);
   const maxStars = LEVELS.length * 3;
   const achievementCount = Object.values(achievements).filter(Boolean).length;
   const hasProgress = totalStars > 0 || achievementCount > 0;
+  // max unlocked level = highest level with stars + 1 (or 1 if none)
+  const maxUnlocked = Math.max(1, ...Object.keys(stars).map(Number).filter(l => stars[l] > 0).map(l => l + 1).concat(1));
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] text-white">
       {/* animated bg shapes */}
@@ -84,7 +94,55 @@ export function StartScreen({ onStart }: { onStart: () => void }) {
           >
             {showHelp ? "收起说明" : "查看玩法说明"}
           </button>
+          {hasProgress && (
+            <button
+              onClick={() => setShowLevelSelect((s) => !s)}
+              className="text-amber-300/90 hover:text-amber-200 text-sm underline underline-offset-4 font-medium"
+            >
+              {showLevelSelect ? "收起关卡选择" : "🎯 选择关卡（刷星）"}
+            </button>
+          )}
         </div>
+
+        {/* Level select panel */}
+        {showLevelSelect && hasProgress && (
+          <div className="bg-black/40 backdrop-blur-md rounded-2xl p-4 border border-amber-400/20 mb-6 max-w-md mx-auto animate-[popin_0.25s_ease-out]">
+            <div className="text-amber-300 font-bold text-sm mb-2 text-center">选择关卡重玩</div>
+            <div className="grid grid-cols-4 gap-2">
+              {LEVELS.map((l) => {
+                const unlocked = l.level <= maxUnlocked;
+                const sCount = stars[l.level] || 0;
+                return (
+                  <button
+                    key={l.level}
+                    disabled={!unlocked}
+                    onClick={() => onSelectLevel?.(l.level)}
+                    className={`relative rounded-lg p-2 border-2 transition-all ${
+                      unlocked
+                        ? "border-amber-400/40 bg-amber-400/10 hover:bg-amber-400/20 hover:scale-105 cursor-pointer"
+                        : "border-white/10 bg-black/30 opacity-40 cursor-not-allowed"
+                    }`}
+                  >
+                    <div className="text-[9px] text-white/50 uppercase">第{l.level}关</div>
+                    <div className="text-lg font-bold">{VARIANT_FOR_LEVEL(l.level)}</div>
+                    <div className="text-[9px] text-white/40">{l.target}</div>
+                    <div className="text-[10px] leading-none mt-0.5">
+                      {sCount > 0 ? "⭐".repeat(sCount) : <span className="text-white/20">☆☆☆</span>}
+                    </div>
+                    {!unlocked && (
+                      <div className="absolute inset-0 flex items-center justify-center text-lg">
+                        🔒
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="text-[10px] text-white/40 text-center mt-2">
+              通关解锁下一关 · 重玩可刷新星数
+            </div>
+          </div>
+        )}
 
         {showHelp && (
           <div className="text-left bg-black/40 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3 animate-[popin_0.25s_ease-out]">

@@ -517,6 +517,8 @@ export class GameEngine {
       }
     }
     this.store.setInventory(inv);
+    // mark that an item was used this level (for no_items achievement)
+    this.usedItemsThisLevel = true;
 
     const def = CONSUMABLES[kind];
     audio.pickup();
@@ -1023,8 +1025,15 @@ export class GameEngine {
     // pacifist_kick — completed a level using only kicks (no weapons used)
     // tracked via this.usedWeaponThisLevel flag
     if (!this.usedWeaponThisLevel) s.unlockAchievement("pacifist_kick", "徒手行者：全程只用脚踹");
+    // no_items — completed a level using 0 consumable items
+    if (!this.usedItemsThisLevel) s.unlockAchievement("no_items", "极简主义者：全程不用道具");
+    // surviver — reached level 5
+    if (s.level >= 5) s.unlockAchievement("surviver", "职场幸存者：到达第5关");
+    // kicker_100 — total kicks across run reaches 100 (approximate via comboMax + level)
+    if (s.kicks >= 50) s.unlockAchievement("kicker_100", "踹击狂人：单关50+踹击");
   }
   private usedWeaponThisLevel = false;
+  private usedItemsThisLevel = false;
 
   // ===== screen change from store (buttons) =====
   private onScreenChange(screen: string) {
@@ -1040,6 +1049,14 @@ export class GameEngine {
     this.store.resetRun();
     this.startLevel(1);
     this.store.setScreen("playing");
+  }
+
+  // Boss variant per level: levels 1-2 normal, 3-4 glasses, 5 coffee, 6-7 headphones
+  private variantForLevel(level: number): "normal" | "glasses" | "coffee" | "headphones" {
+    if (level >= 6) return "headphones";
+    if (level === 5) return "coffee";
+    if (level >= 3) return "glasses";
+    return "normal";
   }
 
   private startLevel(level: number) {
@@ -1062,6 +1079,7 @@ export class GameEngine {
     this.screenShake = 0;
     this.hitFlashTimer = 0;
     this.usedWeaponThisLevel = false;
+    this.usedItemsThisLevel = false;
     // reset run stats
     this.store.resetRunStats();
     this.hitFlashLight.intensity = 0;
@@ -1097,8 +1115,9 @@ export class GameEngine {
       });
     }
     this.smokeClouds = [];
-    // boss reset with difficulty scaling (higher levels = faster boss)
+    // boss reset with difficulty scaling + variant (higher levels = faster boss + different variants)
     this.boss.setDifficulty(level);
+    this.boss.setVariant(this.variantForLevel(level));
     this.boss.reset(level);
     // store
     this.store.setKicks(0);
@@ -1127,6 +1146,14 @@ export class GameEngine {
     const next = this.store.level + 1;
     this.store.setLevel(next);
     this.startLevel(next);
+    this.store.setScreen("playing");
+  }
+
+  // start a specific level (for level select / replay)
+  startAtLevel(level: number) {
+    this.store.resetRun();
+    this.store.setLevel(level);
+    this.startLevel(level);
     this.store.setScreen("playing");
   }
 
@@ -1395,6 +1422,8 @@ export class GameEngine {
       if (ok) {
         this.store.setKicks(this.store.kicks + 1);
         this.store.incCombo();
+        // combo audio (pitch rises with combo)
+        audio.kickHitCombo(this.store.currentCombo);
         // first blood achievement
         this.store.unlockAchievement("first_blood", "初次踹击：开门红");
         this.checkLevelComplete();
@@ -1409,6 +1438,7 @@ export class GameEngine {
         // award hits count
         this.store.setKicks(this.store.kicks + def.hits);
         this.store.incCombo();
+        audio.kickHitCombo(this.store.currentCombo);
         // weapon master — used a weapon successfully
         this.store.unlockAchievement("weapon_master", "武器行者：使用武器命中");
         this.checkLevelComplete();
@@ -1705,12 +1735,21 @@ export class GameEngine {
       bz: this.boss.z,
       bfacing: this.boss.facingY,
       bossState: bs,
+      bossVariant: this.boss.variant,
+      suspicion: this.boss.suspicion,
       patrolCone,
       halfRange,
       items,
       hidingSpots,
       levelTime: this.levelTime,
     });
+    // tense music when boss is alert (suspicion high, or in LookingBack/Attacked/Patrol states)
+    const isTense =
+      this.boss.suspicion > 0.5 ||
+      this.boss.state === "LookingBack" ||
+      this.boss.state === "Attacked" ||
+      this.boss.state === "Patrol";
+    audio.setTense(isTense);
   }
 
   // ===== cleanup =====

@@ -26,6 +26,8 @@ export interface MinimapData {
   bz: number; // boss z
   bfacing: number; // boss facing radians
   bossState: BossStateName;
+  bossVariant: "normal" | "glasses" | "coffee" | "headphones";
+  suspicion: number; // 0..1 boss suspicion meter
   // patrol cone (when patrolling)
   patrolCone?: { range: number; angleDeg: number };
   // half-circle awareness range (0 = none)
@@ -372,6 +374,8 @@ const ACHIEVEMENT_ICONS: Record<string, string> = {
   pacifist_kick: "🦵",
   no_items: "🎒",
   level7: "👑",
+  surviver: "💼",
+  kicker_100: "💯",
 };
 
 

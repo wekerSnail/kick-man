@@ -56,6 +56,9 @@ export default function Game() {
           onStart={() => {
             engineRef.current?.startGame();
           }}
+          onSelectLevel={(level) => {
+            engineRef.current?.startAtLevel(level);
+          }}
         />
       )}
       {ready && screen === "level-transition" && (

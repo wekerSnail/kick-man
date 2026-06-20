@@ -90,8 +90,9 @@ export function HUD() {
         </div>
       </div>
 
-      {/* ===== Right: status panel ===== */}
-      <div className="absolute top-20 right-3 pointer-events-auto bg-black/60 backdrop-blur-md rounded-xl px-3 py-2 border border-white/10 shadow-lg min-w-[160px]">
+      {/* ===== Right: status panel (boss state + variant + suspicion + player status) ===== */}
+      <div className="absolute top-20 right-3 pointer-events-auto bg-black/65 backdrop-blur-md rounded-xl px-3 py-2.5 border border-white/10 shadow-lg min-w-[200px]">
+        {/* Boss state */}
         <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1">
           老板状态
         </div>
@@ -99,6 +100,14 @@ export function HUD() {
           <span className={`w-2 h-2 rounded-full ${bossInfo.color} animate-pulse`} />
           <span className="text-sm font-semibold">{bossInfo.label}</span>
         </div>
+
+        {/* Boss variant + suspicion (from minimap data) */}
+        <BossVariantAndSuspicion />
+
+        {/* Divider */}
+        <div className="my-2 h-px bg-white/10" />
+
+        {/* Player status chips */}
         <div className="space-y-1">
           <StatusChip on={status.hidden} label="隐藏中" icon="🌿" />
           <StatusChip on={status.invisible} label="隐身中" icon="🧪" />
@@ -203,6 +212,52 @@ function LevelTimer() {
         <span className="text-white/30">|</span>
         <span className="text-white/50">最佳</span>
         <span className="font-mono tabular-nums text-amber-300">{bestStr}</span>
+      </div>
+    </div>
+  );
+}
+
+// Boss variant badge + suspicion meter (reads from minimap data)
+function BossVariantAndSuspicion() {
+  const minimap = useGameStore((s) => s.minimap);
+  if (!minimap) return null;
+  const variantInfo: Record<string, { icon: string; label: string; color: string }> = {
+    normal: { icon: "👨‍💼", label: "普通", color: "text-emerald-300" },
+    glasses: { icon: "🤓", label: "戴眼镜·视野更远", color: "text-sky-300" },
+    coffee: { icon: "☕", label: "喝咖啡·更警觉", color: "text-orange-300" },
+    headphones: { icon: "🎧", label: "戴耳机·噪音免疫", color: "text-purple-300" },
+  };
+  const vi = variantInfo[minimap.bossVariant] || variantInfo.normal;
+  const susp = minimap.suspicion;
+  const suspLevel = susp > 0.7 ? "danger" : susp > 0.4 ? "warn" : "safe";
+  const suspColor =
+    suspLevel === "danger" ? "bg-red-500" : suspLevel === "warn" ? "bg-amber-400" : "bg-emerald-400";
+  const suspLabel = suspLevel === "danger" ? "高度警觉!" : suspLevel === "warn" ? "起疑心" : "放松";
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="text-lg">{vi.icon}</span>
+        <span className={`text-[11px] font-semibold ${vi.color}`}>{vi.label}</span>
+      </div>
+      <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
+        <span>警觉度</span>
+        <span
+          className={
+            suspLevel === "danger"
+              ? "text-red-300 font-bold animate-pulse"
+              : suspLevel === "warn"
+              ? "text-amber-300 font-semibold"
+              : "text-emerald-300"
+          }
+        >
+          {suspLabel}
+        </span>
+      </div>
+      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div
+          className={`h-full ${suspColor} transition-all duration-200 ${suspLevel === "danger" ? "animate-pulse" : ""}`}
+          style={{ width: `${susp * 100}%` }}
+        />
       </div>
     </div>
   );

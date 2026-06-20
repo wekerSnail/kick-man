@@ -83,6 +83,16 @@ export class AudioManager {
     this.blip(220, 0.12, "square", 0.5, 80);
     this.noise(0.08, 0.25, 600);
   }
+  // combo hit — pitch rises with combo count
+  kickHitCombo(combo: number) {
+    const baseFreq = 220 + Math.min(combo, 20) * 30; // rises up to 20 combos
+    this.blip(baseFreq, 0.1, "square", 0.5, baseFreq * 0.5);
+    this.noise(0.06, 0.2, 700);
+    if (combo >= 5) {
+      // add a high chime for satisfying feedback
+      setTimeout(() => this.blip(baseFreq * 2, 0.08, "sine", 0.3), 40);
+    }
+  }
   kickMiss() {
     this.blip(180, 0.08, "sine", 0.2, 120);
   }
@@ -191,6 +201,15 @@ export class AudioManager {
       this.bgGain.disconnect();
       this.bgGain = null;
     }
+  }
+
+  // Toggle tense music (higher pitch + faster LFO) when boss is alert
+  setTense(tense: boolean) {
+    if (!this.bgNodes || !this.ctx) return;
+    const target = tense ? 165 : 110; // higher pitch when tense
+    const lfoTarget = tense ? 0.6 : 0.2; // faster wobble when tense
+    this.bgNodes.osc.frequency.linearRampToValueAtTime(target, this.ctx.currentTime + 0.5);
+    this.bgNodes.lfo.frequency.linearRampToValueAtTime(lfoTarget, this.ctx.currentTime + 0.5);
   }
 
   setEnabled(v: boolean) {

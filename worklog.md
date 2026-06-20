@@ -297,3 +297,88 @@ Task: QA pass + implement star rating, achievements, difficulty scaling, smoke b
 - 修改：src/game/components/LevelTransition.tsx（星级显示+统计+难度提示+视觉升级）
 - 修改：src/game/components/StartScreen.tsx（总星数+成就数卡片）
 - 修改：src/game/components/Game.tsx（挂载 AchievementToast + ComboCounter）
+
+---
+Task ID: 17 (cron review #3) — COMPLETION
+Agent: main (orchestrator)
+Task: QA pass + implement Boss variants, suspicion meter, level select, audio enhancements, more achievements
+
+## 项目当前状态描述/判断
+游戏核心功能完整稳定（Tasks 1-16 已完成并验证）。本轮 cron 审查未发现 bug，新增 6 项功能：Boss 多形态系统、警觉度计量、关卡选择、音效增强、新成就、HUD 集成。所有功能经 agent-browser + VLM 验证通过。Lint 0 错误，dev server 运行正常，无运行时异常。
+
+## 当前目标/已完成的修改/验证结果
+
+### 新增功能
+
+1. **Boss 多形态系统**（4 种变体，按关卡分配）：
+   - normal（1-2 关）：👨‍💼 标准行为
+   - glasses（3-4 关）：🤓 半圆检测范围 5→7，回头检测 6→8，巡逻 7→8
+   - coffee（5 关）：☕ 计时器额外 ×0.85（更警觉），咖啡杯模型 + 蒸汽动画
+   - headphones（6-7 关）：🎧 噪音器无效（noiseImmune=true）
+   - setVariant() + rebuildAccessories() 方法，配饰附加到 bodyGroup
+   - 验证：level 3 variant=glasses halfRange=7 ✓；level 6 noiseImmune=true，噪音器无效 ✓
+
+2. **警觉度计量系统**（suspicion meter）：
+   - 0~1 浮点值，Boss Normal 状态下玩家在 5u 内逐渐上升（越近越快，rate 0.35/s）
+   - 被发现/被踢击时 +0.3
+   - 满值（1.0）触发 LookingBack
+   - 衰减率 0.08/s
+   - HUD 右侧显示进度条（绿→黄→红）+ "放松/起疑心/高度警觉！"标签
+   - 验证：靠近 Boss 5s 后 suspicion=0.196，16s 后触发 LookingBack ✓
+
+3. **关卡选择**（开始界面）：
+   - 通关后开始界面显示"🎯 选择关卡（刷星）"按钮
+   - 4×2 网格显示 7 关，每关显示 Boss 变体图标 + 星数 + 锁定状态
+   - 通关解锁下一关，重玩可刷新星数
+   - startAtLevel(level) 方法
+   - 验证：3 星通关后开始界面显示关卡选择，点击第 2 关进入游戏 ✓
+
+4. **音效增强**：
+   - kickHitCombo(combo)：连击命中音调随连击数升高（220+combo×30 Hz），5+ 连击加高音叮咚
+   - setTense(tense)：Boss 警觉时背景音乐变紧张（110→165 Hz，LFO 0.2→0.6）
+   - 触发条件：suspicion>0.5 或 LookingBack/Attacked/Patrol 状态
+
+5. **新成就**（3 个，共 13 个）：
+   - no_items 🎒 极简主义者：全程不用道具
+   - surviver 💼 职场幸存者：到达第 5 关
+   - kicker_100 💯 踹击狂人：单关 50+ 踹击
+   - usedItemsThisLevel 标志追踪道具使用
+   - 验证：no_items 成就解锁 ✓
+
+6. **HUD 集成**：
+   - 右侧面板整合：Boss 状态 + 变体徽章 + 警觉度条 + 玩家状态芯片
+   - 变体图标 + 描述（普通/戴眼镜·视野更远/喝咖啡·更警觉/戴耳机·噪音免疫）
+
+### 验证结果（agent-browser + VLM）
+- Boss 变体：level 1 normal, level 3 glasses (halfRange=7), level 6 headphones (noiseImmune) ✓
+- 警觉度：靠近 5s→0.196, 16s→触发 LookingBack ✓
+- 关卡选择：3 星通关后显示，点击第 2 关进入 ✓
+- no_items 成就：不用道具通关解锁 ✓
+- 噪音免疫：headphones 变体使用噪音器后 boss 状态不变 ✓
+- VLM：HUD 可读，变体+警觉度可见
+- Lint 0 错误，无运行时异常，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless pointer lock 不可用**（同前轮，已 fallback 缓解）
+2. **性能**：headless ~16fps，真实浏览器 60fps
+3. **Boss 配饰小分辨率不可见**：眼镜/耳机在低分辨率截图难辨认，真实浏览器清晰
+4. **本地存储未实现**：星数/成就/最佳时间仅在内存，刷新丢失（store 未持久化）
+
+## 建议下一阶段优先事项
+1. **localStorage 持久化**：保存星数/成就/最佳时间，刷新不丢失
+2. **Boss 多阶段血量**：高关卡 Boss 需要多次踹击才能"击倒"进入下一阶段
+3. **更多 Boss 变体**：愤怒模式（全图检测）、开会模式（无敌+范围攻击）
+4. **道具图鉴/成就页面**：开始界面查看所有道具和已解锁成就
+5. **音效增强**：Boss 变体专属音效（眼镜反光声、咖啡啜饮声）
+6. **视觉细节**：Boss 配饰放大、更明显的视觉差异
+7. **真机移动端测试**
+8. **移除 window.__engine debug hook**
+
+## 文件清单（本轮新增/修改）
+- 修改：src/game/engine/Boss.ts（变体系统、配饰构建、警觉度、检测范围动态化、咖啡蒸汽动画、noiseImmune）
+- 修改：src/game/engine/GameEngine.ts（variantForLevel、startAtLevel、no_items/surviver/kicker_100 成就、combo 音效、tense 音乐、usedItemsThisLevel）
+- 修改：src/game/store.ts（MinimapData +bossVariant/suspicion、新成就图标）
+- 修改：src/game/audio/AudioManager.ts（kickHitCombo、setTense）
+- 修改：src/game/components/HUD.tsx（BossVariantAndSuspicion 组件集成右侧面板）
+- 修改：src/game/components/StartScreen.tsx（关卡选择面板 + 变体图标）
+- 修改：src/game/components/Game.tsx（onSelectLevel 传递）

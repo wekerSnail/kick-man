@@ -173,6 +173,20 @@ export class Boss {
   private lastPos = new THREE.Vector3();
   private patrolDirection = 1; // 1 forward, -1 back
 
+  // ===== Boss variant system =====
+  // variant determines appearance + detection modifiers
+  variant: "normal" | "glasses" | "coffee" | "headphones" = "normal";
+  // detection range multipliers (set by variant)
+  private halfRangeBase = 5;
+  private lookRangeBase = 6;
+  private patrolRangeBase = 7;
+  private noiseImmune = false;
+  // accessories group (rebuildable)
+  private accessories: THREE.Group = new THREE.Group();
+  // suspicion meter (0..1) — rises with nearby kicks, decays over time
+  suspicion = 0;
+  private suspicionDecayPerSec = 0.08;
+
   // distracted target
   private distractTarget: THREE.Vector3 | null = null;
 
@@ -479,6 +493,129 @@ export class Boss {
     this.bodyGroup.position.y = 0;
     this.group.add(this.bodyGroup);
     this.applySittingPose(1);
+
+    // accessories group (added to bodyGroup so it moves with sitting/standing)
+    this.bodyGroup.add(this.accessories);
+  }
+
+  // ===== Variant system =====
+  // Set boss variant: changes appearance + detection modifiers.
+  // - normal: baseline
+  // - glasses: +50% half-circle & look range (boss sees further)
+  // - coffee: +30% patrol frequency (more alert, shorter timers)
+  // - headphones: noise-immune (noise item has no effect)
+  setVariant(v: "normal" | "glasses" | "coffee" | "headphones") {
+    this.variant = v;
+    switch (v) {
+      case "glasses":
+        this.halfRangeBase = 7;
+        this.lookRangeBase = 8;
+        this.patrolRangeBase = 8;
+        this.noiseImmune = false;
+        break;
+      case "coffee":
+        this.halfRangeBase = 5;
+        this.lookRangeBase = 6;
+        this.patrolRangeBase = 7;
+        this.noiseImmune = false;
+        // coffee makes boss more alert → timers even shorter (handled in difficultyScale via extra factor)
+        break;
+      case "headphones":
+        this.halfRangeBase = 5;
+        this.lookRangeBase = 6;
+        this.patrolRangeBase = 7;
+        this.noiseImmune = true;
+        break;
+      default:
+        this.halfRangeBase = 5;
+        this.lookRangeBase = 6;
+        this.patrolRangeBase = 7;
+        this.noiseImmune = false;
+    }
+    this.rebuildAccessories();
+  }
+
+  private rebuildAccessories() {
+    // clear existing
+    while (this.accessories.children.length) {
+      const c = this.accessories.children[0];
+      this.accessories.remove(c);
+      if (c instanceof THREE.Mesh) {
+        c.geometry.dispose();
+        (c.material as THREE.Material).dispose();
+      }
+    }
+    if (this.variant === "glasses") {
+      // thick black frame glasses
+      const frameMat = this.mat(0x111111);
+      for (const sx of [-0.12, 0.12]) {
+        const lens = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.03), frameMat);
+        lens.position.set(sx, 1.98, 0.22);
+        this.accessories.add(lens);
+      }
+      // bridge
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), frameMat);
+      bridge.position.set(0, 1.98, 0.23);
+      this.accessories.add(bridge);
+      // temple arms
+      for (const sx of [-0.21, 0.21]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.18), frameMat);
+        arm.position.set(sx, 1.98, 0.12);
+        this.accessories.add(arm);
+      }
+    } else if (this.variant === "coffee") {
+      // coffee mug in right hand
+      const mugMat = this.mat(0xdddddd);
+      const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.14, 8), mugMat);
+      mug.position.set(0.55, 1.1, 0.15);
+      this.accessories.add(mug);
+      // handle
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 6, 8, Math.PI), mugMat);
+      handle.position.set(0.63, 1.1, 0.15);
+      handle.rotation.y = Math.PI / 2;
+      this.accessories.add(handle);
+      // coffee (dark liquid)
+      const coffee = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8),
+        this.mat(0x3a1a0a)
+      );
+      coffee.position.set(0.55, 1.17, 0.15);
+      this.accessories.add(coffee);
+      // steam particles (small white spheres above)
+      for (let i = 0; i < 3; i++) {
+        const steam = new THREE.Mesh(
+          new THREE.SphereGeometry(0.04, 6, 4),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })
+        );
+        steam.position.set(0.55 + (i - 1) * 0.04, 1.3 + i * 0.08, 0.15);
+        steam.userData.isSteam = true;
+        steam.userData.steamBase = 1.3 + i * 0.08;
+        this.accessories.add(steam);
+      }
+    } else if (this.variant === "headphones") {
+      // over-ear headphones
+      const hpMat = this.mat(0x222222);
+      // headband
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 6, 12, Math.PI), hpMat);
+      band.position.set(0, 2.15, 0);
+      band.rotation.x = Math.PI / 2;
+      this.accessories.add(band);
+      // ear cups
+      for (const sx of [-0.22, 0.22]) {
+        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.08, 12), hpMat);
+        cup.position.set(sx, 1.95, 0);
+        cup.rotation.z = Math.PI / 2;
+        this.accessories.add(cup);
+        // cushion
+        const cush = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.07, 0.07, 0.04, 12),
+          this.mat(0x111111)
+        );
+        cush.position.set(sx + (sx > 0 ? -0.04 : 0.04), 1.95, 0);
+        cush.rotation.z = Math.PI / 2;
+        this.accessories.add(cush);
+      }
+    }
   }
 
   private applySittingPose(blend: number) {
@@ -574,12 +711,16 @@ export class Boss {
       this.setState("Attacked");
       this.startAttackedSequence(ctx);
     }
+    // being hit raises suspicion (lingering awareness after Attacked resolves)
+    this.suspicion = Math.min(1, this.suspicion + 0.3);
     this.cb.onBossHit?.();
     return true;
   }
 
   triggerDistracted(noisePos: THREE.Vector3) {
     if (this.state === "Stunned" || this.state === "Meeting") return;
+    // headphones variant is immune to noise
+    if (this.noiseImmune) return;
     this.distractTarget = noisePos.clone();
     this.setState("Distracted");
     this.startDistractSequence();
@@ -667,6 +808,26 @@ export class Boss {
     const dt = ctx.dt;
     this.detectCooldown = Math.max(0, this.detectCooldown - dt);
 
+    // suspicion decay (only in Normal state, and not during detection cooldown)
+    if (this.state === "Normal") {
+      this.suspicion = Math.max(0, this.suspicion - this.suspicionDecayPerSec * dt);
+      // rise suspicion if player is nearby and not hidden/invisible
+      const dx = ctx.playerPos.x - this.x;
+      const dz = ctx.playerPos.z - this.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist < 5 && !ctx.playerHidden && !ctx.playerInvisible && !ctx.playerObscuredBySmoke) {
+        // closer = faster rise; rate tuned to outpace decay when very close
+        const closeness = 1 - dist / 5;
+        this.suspicion = Math.min(1, this.suspicion + closeness * 0.35 * dt);
+      }
+      // if suspicion maxed → trigger LookingBack
+      if (this.suspicion >= 1) {
+        this.suspicion = 0;
+        this.setState("LookingBack");
+        this.startLookingBackSequence();
+      }
+    }
+
     // dialogue timer
     if (this.dialogueTimer > 0) {
       this.dialogueTimer -= dt;
@@ -732,6 +893,17 @@ export class Boss {
 
   private idleSway(amount: number) {
     this.bodyGroup.rotation.z = Math.sin(this.swayPhase * 1.5) * amount;
+    // animate coffee steam (if coffee variant)
+    if (this.variant === "coffee") {
+      this.accessories.children.forEach((c) => {
+        if (c instanceof THREE.Mesh && c.userData.isSteam) {
+          const base = c.userData.steamBase as number;
+          c.position.y = base + Math.sin(this.swayPhase * 2 + base * 10) * 0.04;
+          const mat = c.material as THREE.MeshBasicMaterial;
+          mat.opacity = 0.3 + Math.sin(this.swayPhase * 2 + base * 10) * 0.25;
+        }
+      });
+    }
   }
 
   // ===== Normal =====
@@ -772,7 +944,9 @@ export class Boss {
     this._difficulty = d;
   }
   private difficultyScale(): number {
-    return Math.max(0.55, 1.05 - this._difficulty * 0.07);
+    // coffee variant → extra 0.85x (more alert)
+    const variantFactor = this.variant === "coffee" ? 0.85 : 1.0;
+    return Math.max(0.45, (1.05 - this._difficulty * 0.07) * variantFactor);
   }
 
   private halfCircleDetect(ctx: BossContext) {
@@ -780,7 +954,7 @@ export class Boss {
     const dx = ctx.playerPos.x - this.x;
     const dz = ctx.playerPos.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist > 5) return;
+    if (dist > this.halfRangeBase) return;
     // half-circle toward +Z (player area). Normal boss faces -Z; the "awareness" is the back hemisphere (+Z)
     // i.e., player z > boss z (in front of awareness)
     if (dz < 0.2) return; // only +Z hemisphere
@@ -832,7 +1006,7 @@ export class Boss {
       if (this.phase.t >= this.phase.dur) this.advancePhase();
     } else if (p === "observe") {
       // detect during observe
-      this.lookingDetect(ctx, 6);
+      this.lookingDetect(ctx, this.lookRangeBase);
       if (this.phase.t >= this.phase.dur) this.advancePhase();
     } else if (p === "dialogue") {
       // speak (generic) — only if not already shown
@@ -881,7 +1055,7 @@ export class Boss {
       this.targetFacingY = 0;
       if (this.phase.t >= this.phase.dur) this.advancePhase();
     } else if (p === "a_observe") {
-      this.attackedDetect(ctx, 5);
+      this.attackedDetect(ctx, this.halfRangeBase);
       if (this.phase.t >= this.phase.dur) this.advancePhase();
     } else if (p === "a_conclude") {
       // conclusion line is set in attackedDetect; if not detected show "幻觉"
@@ -1041,14 +1215,14 @@ export class Boss {
 
   private patrolDetect(ctx: BossContext) {
     if (this.detectCooldown > 0) return;
-    // 7u, 80° cone in front
+    // patrolRangeBase u, 80° cone in front
     const toPlayer = new THREE.Vector3(
       ctx.playerPos.x - this.x,
       0,
       ctx.playerPos.z - this.z
     );
     const dist = toPlayer.length();
-    if (dist > 7) return;
+    if (dist > this.patrolRangeBase) return;
     if (ctx.playerInvisible || ctx.playerHidden || ctx.playerObscuredBySmoke) return;
     // cone
     const fwd = this.forward;
