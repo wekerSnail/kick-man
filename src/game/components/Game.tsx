@@ -139,9 +139,16 @@ export default function Game() {
 function FlashOverlay() {
   // briefly flash red when detected — driven by HP decreasing
   const hp = useGameStore((s) => s.hp);
+  const maxHp = useGameStore((s) => s.maxHp);
   const [flash, setFlash] = useState(0);
   const prevHp = useRef(hp);
   useEffect(() => {
+    if (hp >= maxHp) {
+      // HP restored to max (restart) — clear any lingering flash
+      setFlash(0);
+      prevHp.current = hp;
+      return;
+    }
     if (hp < prevHp.current) {
       // schedule via rAF so it's not a synchronous setState in effect
       const id = window.requestAnimationFrame(() => setFlash((f) => f + 1));
@@ -149,7 +156,7 @@ function FlashOverlay() {
       return () => window.cancelAnimationFrame(id);
     }
     prevHp.current = hp;
-  }, [hp]);
+  }, [hp, maxHp]);
   if (flash === 0) return null;
   return (
     <div
