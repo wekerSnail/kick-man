@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000 2>&1",
     "build": "next build",
+    "build:gh": "GITHUB_PAGES=1 next build",
     "start": "npx serve out -l 3000",
     "lint": "eslint .",
     "db:push": "prisma db push",

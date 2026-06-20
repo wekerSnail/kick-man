@@ -1,8 +1,9 @@
 import type { NextConfig } from "next";
 
+const isGhPages = process.env.GITHUB_PAGES === "1";
+
 const nextConfig: NextConfig = {
-  output: "export",
-  basePath: "/kick-man",
+  ...(isGhPages ? { output: "export", basePath: "/kick-man" } : {}),
   /* config options here */
   typescript: {
     ignoreBuildErrors: true,
