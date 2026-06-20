@@ -41,31 +41,31 @@ export function HUD() {
   return (
     <div className="pointer-events-none absolute inset-0 z-10 text-white font-sans">
       {/* ===== Top bar ===== */}
-      <div className="absolute top-0 left-0 right-0 flex items-start justify-between p-3 gap-2">
+      <div className="absolute top-0 left-0 right-0 flex items-start justify-between p-1.5 sm:p-3 gap-1 sm:gap-2">
         {/* Level + progress */}
-        <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 shadow-lg">
-          <div className="flex items-center gap-3">
+        <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-lg sm:rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 border border-white/10 shadow-lg">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-white/60">
+              <span className="text-[8px] sm:text-[10px] uppercase tracking-wider text-white/60">
                 关卡
               </span>
-              <span className="text-2xl font-bold leading-none">
+              <span className="text-lg sm:text-2xl font-bold leading-none">
                 {level}
-                <span className="text-sm text-white/50">/{LEVELS.length}</span>
+                <span className="text-xs sm:text-sm text-white/50">/{LEVELS.length}</span>
               </span>
             </div>
-            <div className="w-px h-8 bg-white/20" />
+            <div className="w-px h-6 sm:h-8 bg-white/20" />
             <div className="flex flex-col">
-              <span className="text-[10px] uppercase tracking-wider text-white/60">
+              <span className="text-[8px] sm:text-[10px] uppercase tracking-wider text-white/60">
                 踹击进度
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold leading-none tabular-nums">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="text-lg sm:text-2xl font-bold leading-none tabular-nums">
                   {kicks}
                 </span>
-                <span className="text-sm text-white/50">/ {target}</span>
+                <span className="text-xs sm:text-sm text-white/50">/ {target}</span>
               </div>
-              <div className="mt-1 w-40 h-1.5 bg-white/15 rounded-full overflow-hidden">
+              <div className="mt-1 w-24 sm:w-40 h-1 sm:h-1.5 bg-white/15 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-400 to-lime-400 transition-all"
                   style={{ width: `${Math.min(100, (kicks / target) * 100)}%` }}
@@ -76,11 +76,11 @@ export function HUD() {
         </div>
 
         {/* HP */}
-        <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-xl px-4 py-2 border border-white/10 shadow-lg flex items-center gap-1">
+        <div className="pointer-events-auto bg-black/60 backdrop-blur-md rounded-lg sm:rounded-xl px-2.5 py-1.5 sm:px-4 sm:py-2 border border-white/10 shadow-lg flex items-center gap-0.5 sm:gap-1">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className={`text-2xl transition-all ${
+              className={`text-lg sm:text-2xl transition-all ${
                 i < hp ? "scale-100 opacity-100" : "scale-75 opacity-30 grayscale"
               }`}
             >
@@ -91,24 +91,24 @@ export function HUD() {
       </div>
 
       {/* ===== Right: status panel (boss state + variant + suspicion + player status) ===== */}
-      <div className="absolute top-20 right-3 pointer-events-auto bg-black/65 backdrop-blur-md rounded-xl px-3 py-2.5 border border-white/10 shadow-lg min-w-[200px]">
+      <div className="absolute top-14 right-2 sm:top-20 sm:right-3 pointer-events-auto bg-black/65 backdrop-blur-md rounded-lg sm:rounded-xl px-2 py-2 sm:px-3 sm:py-2.5 border border-white/10 shadow-lg min-w-35 sm:min-w-50">
         {/* Boss state */}
-        <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1">
+        <div className="text-[8px] sm:text-[10px] uppercase tracking-wider text-white/50 mb-0.5 sm:mb-1">
           老板状态
         </div>
-        <div className="flex items-center gap-2 mb-2">
-          <span className={`w-2 h-2 rounded-full ${bossInfo.color} animate-pulse`} />
-          <span className="text-sm font-semibold">{bossInfo.label}</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+          <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${bossInfo.color} animate-pulse`} />
+          <span className="text-xs sm:text-sm font-semibold">{bossInfo.label}</span>
         </div>
 
         {/* Boss variant + suspicion (from minimap data) */}
         <BossVariantAndSuspicion />
 
         {/* Divider */}
-        <div className="my-2 h-px bg-white/10" />
+        <div className="my-1.5 sm:my-2 h-px bg-white/10" />
 
         {/* Player status chips */}
-        <div className="space-y-1">
+        <div className="space-y-0.5 sm:space-y-1">
           <StatusChip on={status.hidden} label="隐藏中" icon="🌿" />
           <StatusChip on={status.invisible} label="隐身中" icon="🧪" />
           <StatusChip on={status.spedUp} label="加速中" icon="👟" />
@@ -119,14 +119,14 @@ export function HUD() {
       </div>
 
       {/* ===== Bottom: inventory + throw charge ===== */}
-      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-2 p-3">
+      <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center gap-1.5 sm:gap-2 p-1.5 sm:p-3">
         {/* Throw charge */}
         {throwCharge > 0 && (
-          <div className="pointer-events-none bg-black/60 rounded-full px-3 py-1 border border-white/10 mb-1">
-            <div className="text-[10px] uppercase tracking-wider text-white/60 mb-0.5 text-center">
+          <div className="pointer-events-none bg-black/60 rounded-full px-2 py-0.5 sm:px-3 sm:py-1 border border-white/10 mb-0.5 sm:mb-1">
+            <div className="text-[8px] sm:text-[10px] uppercase tracking-wider text-white/60 mb-0.5 text-center">
               投掷蓄力
             </div>
-            <div className="w-48 h-2.5 bg-white/15 rounded-full overflow-hidden">
+            <div className="w-32 sm:w-48 h-2 sm:h-2.5 bg-white/15 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500"
                 style={{ width: `${throwCharge * 100}%` }}
@@ -136,14 +136,14 @@ export function HUD() {
         )}
 
         {/* Inventory */}
-        <div className="pointer-events-auto flex gap-1.5 bg-black/60 backdrop-blur-md rounded-xl p-2 border border-white/10 shadow-lg">
+        <div className="pointer-events-auto flex gap-1 sm:gap-1.5 bg-black/60 backdrop-blur-md rounded-lg sm:rounded-xl p-1.5 sm:p-2 border border-white/10 shadow-lg">
           {inventory.map((slot, i) => {
             const isSel = selectedSlot === i;
             return (
               <button
                 key={i}
                 onClick={() => selectSlot(i)}
-                className={`relative w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-all ${
+                className={`relative w-10 h-10 sm:w-14 sm:h-14 rounded-md sm:rounded-lg border sm:border-2 flex flex-col items-center justify-center transition-all ${
                   isSel
                     ? "border-amber-400 bg-amber-400/20 scale-105"
                     : slot.kind
@@ -152,28 +152,28 @@ export function HUD() {
                 }`}
                 title={slot.kind ? nameOf(slot.kind) : "空"}
               >
-                <span className="absolute top-0.5 left-1 text-[9px] text-white/40 font-mono">
+                <span className="absolute top-0 left-0.5 sm:top-0.5 sm:left-1 text-[7px] sm:text-[9px] text-white/40 font-mono">
                   {i + 1}
                 </span>
                 {slot.kind ? (
                   <>
-                    <span className="text-2xl leading-none">{iconOf(slot.kind)}</span>
+                    <span className="text-lg sm:text-2xl leading-none">{iconOf(slot.kind)}</span>
                     {slot.count > 1 && (
-                      <span className="absolute bottom-0.5 right-1 text-[10px] font-bold bg-black/70 px-1 rounded">
+                      <span className="absolute bottom-0 right-0.5 sm:bottom-0.5 sm:right-1 text-[8px] sm:text-[10px] font-bold bg-black/70 px-0.5 sm:px-1 rounded">
                         {slot.count}
                       </span>
                     )}
                   </>
                 ) : (
-                  <span className="text-white/20 text-xs">空</span>
+                  <span className="text-white/20 text-[10px] sm:text-xs">空</span>
                 )}
               </button>
             );
           })}
         </div>
 
-        {/* Equipped + controls hint */}
-        <div className="pointer-events-none flex flex-wrap items-center gap-2 text-[11px] text-white/50 justify-center max-w-2xl">
+        {/* Equipped + controls hint — hidden on mobile (touch controls shown instead) */}
+        <div className="pointer-events-none hidden sm:flex flex-wrap items-center gap-2 text-[11px] text-white/50 justify-center max-w-2xl">
           <span className="bg-black/50 px-2 py-0.5 rounded">
             装备: {equippedWeapon ? WEAPONS[equippedWeapon].name : "无（徒手踹）"}
           </span>
@@ -183,6 +183,12 @@ export function HUD() {
           <span className="bg-black/50 px-2 py-0.5 rounded">1-6 道具</span>
           <span className="bg-black/50 px-2 py-0.5 rounded">ESC 暂停</span>
           <span className="bg-black/50 px-2 py-0.5 rounded">M 音效</span>
+        </div>
+        {/* Mobile: compact equipped info only */}
+        <div className="pointer-events-none flex sm:hidden items-center gap-1.5 text-[10px] text-white/40">
+          <span className="bg-black/50 px-1.5 py-0.5 rounded">
+            {equippedWeapon ? WEAPONS[equippedWeapon].name : "徒手"}
+          </span>
         </div>
       </div>
 
@@ -205,13 +211,13 @@ function LevelTimer() {
   const best = bestTimes[level];
   const bestStr = best !== undefined ? `${Math.floor(best / 60)}:${String(Math.floor(best % 60)).padStart(2, "0")}` : "--:--";
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 pointer-events-none">
-      <div className="bg-black/60 backdrop-blur-md rounded-full px-4 py-1 border border-white/10 flex items-center gap-3 text-xs">
+    <div className="absolute top-1 left-1/2 -translate-x-1/2 pointer-events-none sm:top-3">
+      <div className="bg-black/60 backdrop-blur-md rounded-full px-2.5 py-0.5 sm:px-4 sm:py-1 border border-white/10 flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-xs">
         <span className="text-white/50">⏱</span>
         <span className="font-mono font-bold tabular-nums text-white">{tStr}</span>
-        <span className="text-white/30">|</span>
-        <span className="text-white/50">最佳</span>
-        <span className="font-mono tabular-nums text-amber-300">{bestStr}</span>
+        <span className="text-white/30 hidden sm:inline">|</span>
+        <span className="text-white/50 hidden sm:inline">最佳</span>
+        <span className="font-mono tabular-nums text-amber-300 hidden sm:inline">{bestStr}</span>
       </div>
     </div>
   );
@@ -238,11 +244,11 @@ function BossVariantAndSuspicion() {
   const enraged = minimap.bossEnraged;
   return (
     <div>
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <span className="text-lg">{vi.icon}</span>
-        <span className={`text-[11px] font-semibold ${vi.color}`}>{vi.label}</span>
+      <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+        <span className="text-sm sm:text-lg">{vi.icon}</span>
+        <span className={`text-[9px] sm:text-[11px] font-semibold ${vi.color}`}>{vi.label}</span>
         {enraged && (
-          <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse ml-auto">
+          <span className="text-[7px] sm:text-[9px] bg-red-600 text-white px-1 py-0.5 sm:px-1.5 rounded-full font-bold animate-pulse ml-auto">
             暴怒中！
           </span>
         )}
@@ -250,23 +256,23 @@ function BossVariantAndSuspicion() {
 
       {/* Boss HP bar (only for multi-HP bosses) */}
       {showHP && (
-        <div className="mb-1.5">
-          <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
+        <div className="mb-1 sm:mb-1.5">
+          <div className="flex items-center justify-between text-[7px] sm:text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
             <span>老板体力</span>
             <span className="text-red-300 font-bold tabular-nums">
               {minimap.bossHP}<span className="text-white/40">/{minimap.bossMaxHP}</span>
             </span>
           </div>
-          <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+          <div className="w-full h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-200"
+              className="h-full bg-linear-to-r from-red-600 to-orange-500 transition-all duration-200"
               style={{ width: `${(minimap.bossHP / minimap.bossMaxHP) * 100}%` }}
             />
           </div>
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
+      <div className="flex items-center justify-between text-[7px] sm:text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
         <span>警觉度</span>
         <span
           className={
@@ -280,7 +286,7 @@ function BossVariantAndSuspicion() {
           {suspLabel}
         </span>
       </div>
-      <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+      <div className="w-full h-1 sm:h-1.5 bg-white/10 rounded-full overflow-hidden">
         <div
           className={`h-full ${suspColor} transition-all duration-200 ${suspLevel === "danger" ? "animate-pulse" : ""}`}
           style={{ width: `${susp * 100}%` }}
@@ -304,7 +310,7 @@ function StatusChip({
   if (!on) return null;
   return (
     <div
-      className={`flex items-center gap-1.5 text-xs font-medium ${
+      className={`flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium ${
         danger ? "text-red-300" : "text-emerald-300"
       }`}
     >
@@ -319,7 +325,7 @@ function BossDialogueMirror() {
   if (!dialogue) return null;
   return (
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-      <div className="bg-white/95 text-gray-900 px-4 py-2 rounded-xl shadow-2xl border-2 border-gray-800 text-sm font-semibold max-w-xs text-center animate-[popin_0.2s_ease-out]">
+      <div className="bg-white/95 text-gray-900 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl shadow-2xl border-2 border-gray-800 text-xs sm:text-sm font-semibold max-w-50 sm:max-w-xs text-center animate-[popin_0.2s_ease-out]">
         💬 {dialogue}
       </div>
     </div>

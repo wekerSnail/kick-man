@@ -6,7 +6,9 @@ import { WORLD, itemIcon, itemColor } from "../constants";
 
 // Minimap renders a top-down view of the office.
 // World coords are in [-9, 9]; we map to canvas pixels.
-const SIZE = 180; // canvas px
+// Desktop: 180px, Mobile: 110px (via CSS class)
+const SIZE = 180;
+const SIZE_MOBILE = 110;
 const PADDING = 8;
 
 export function Minimap() {
@@ -31,17 +33,16 @@ export function Minimap() {
   }, []);
 
   return (
-    <div className="pointer-events-auto absolute top-20 left-3 z-10">
-      <div className="bg-black/60 backdrop-blur-md rounded-xl p-1.5 border border-white/10 shadow-lg">
-        <div className="text-[9px] uppercase tracking-wider text-white/50 mb-0.5 text-center">
+    <div className="pointer-events-auto absolute top-14 left-2 z-10 sm:top-20 sm:left-3">
+      <div className="bg-black/60 backdrop-blur-md rounded-lg sm:rounded-xl p-1 sm:p-1.5 border border-white/10 shadow-lg">
+        <div className="text-[8px] sm:text-[9px] uppercase tracking-wider text-white/50 mb-0.5 text-center">
           小地图
         </div>
         <canvas
           ref={canvasRef}
           width={SIZE}
           height={SIZE}
-          className="rounded-lg"
-          style={{ width: SIZE, height: SIZE }}
+          className="rounded-lg w-27.5 h-27.5 sm:w-45 sm:h-45"
         />
       </div>
     </div>
