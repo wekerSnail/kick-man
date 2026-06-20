@@ -1101,6 +1101,7 @@ export class GameEngine {
   private usedWeaponThisLevel = false;
   private usedItemsThisLevel = false;
   private wasEnragedLastFrame = false;
+  private wasTenseLastFrame = false;
 
   // ===== screen change from store (buttons) =====
   private onScreenChange(screen: string) {
@@ -1167,6 +1168,7 @@ export class GameEngine {
     this.usedWeaponThisLevel = false;
     this.usedItemsThisLevel = false;
     this.wasEnragedLastFrame = false;
+    this.wasTenseLastFrame = false;
     // clear transient UI state from previous level
     this.store.clearEventBanner();
     this.store.dismissVariantTutorial();
@@ -1905,7 +1907,10 @@ export class GameEngine {
       this.boss.state === "LookingBack" ||
       this.boss.state === "Attacked" ||
       this.boss.state === "Patrol";
-    audio.setTense(isTense);
+    if (isTense !== this.wasTenseLastFrame) {
+      audio.setTense(isTense);
+      this.wasTenseLastFrame = isTense;
+    }
     // rage enrage-state transition: play roar when entering enrage
     const isEnragedNow = this.boss.isEnraged();
     if (isEnragedNow && !this.wasEnragedLastFrame) {

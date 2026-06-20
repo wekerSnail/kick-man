@@ -157,6 +157,14 @@ function FlashOverlay() {
     }
     prevHp.current = hp;
   }, [hp, maxHp]);
+
+  // auto-clear flash after animation completes (0.6s)
+  useEffect(() => {
+    if (flash === 0) return;
+    const timer = setTimeout(() => setFlash(0), 650);
+    return () => clearTimeout(timer);
+  }, [flash]);
+
   if (flash === 0) return null;
   return (
     <div

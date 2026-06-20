@@ -405,8 +405,11 @@ export class AudioManager {
     if (!this.bgNodes || !this.ctx) return;
     const target = tense ? 165 : 110; // higher pitch when tense
     const lfoTarget = tense ? 0.6 : 0.2; // faster wobble when tense
-    this.bgNodes.osc.frequency.linearRampToValueAtTime(target, this.ctx.currentTime + 0.5);
-    this.bgNodes.lfo.frequency.linearRampToValueAtTime(lfoTarget, this.ctx.currentTime + 0.5);
+    // Use setTargetAtTime for smoother, more browser-compatible transitions
+    // (linearRampToValueAtTime can cause artifacts when called rapidly)
+    const t = this.ctx.currentTime;
+    this.bgNodes.osc.frequency.setTargetAtTime(target, t, 0.3);
+    this.bgNodes.lfo.frequency.setTargetAtTime(lfoTarget, t, 0.3);
   }
 
   setEnabled(v: boolean) {
