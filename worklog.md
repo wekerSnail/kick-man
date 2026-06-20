@@ -456,3 +456,67 @@ Task: QA pass + implement localStorage persistence, achievements/items gallery, 
 - 修改：src/game/engine/GameEngine.ts（triggerLevelComplete 累加 totalKicks + setMaxLevelReached）
 - 修改：src/game/components/StartScreen.tsx（+图鉴按钮、累计踹击卡片、maxLevelReached 解锁逻辑、成就数 /13）
 - 修改：src/game/components/Game.tsx（+Gallery 状态与挂载、onShowGallery 传递）
+
+---
+Task ID: 19 (cron review #5) — COMPLETION
+Agent: main (orchestrator)
+Task: QA pass + implement Boss multi-phase HP, rage variant, event banners
+
+## 项目当前状态描述/判断
+游戏核心功能完整稳定（Tasks 1-18 已完成并验证）。本轮 cron 审查未发现 bug，新增 3 项功能：Boss 多阶段体力系统、暴怒变体（第7关）、屏幕中央事件通知。所有功能经 agent-browser + VLM 验证通过。Lint 0 错误，dev server 运行正常，无运行时异常。
+
+## 当前目标/已完成的修改/验证结果
+
+### 新增功能
+
+1. **Boss 多阶段体力系统**：
+   - bossHP/bossMaxHP 字段，按关卡分配：1-2关→1, 3-4关→2, 5-6关→3, 7关→4
+   - 每次命中扣 1 体力，体力归零触发"踉跄"（3秒眩晕 + 对话"你…给我等着！" + 怀疑度+0.5），体力重置
+   - 3D 血条（Boss 头顶红/橙/黄色条，颜色随体力变化）
+   - HUD 右侧面板显示"老板体力 HP/MaxHP"进度条
+   - 验证：第3关踢2次 → HP 2→1→0(踉跄)→重置2, kicks=2 ✓
+
+2. **暴怒变体（第7关 rage）**：
+   - 外观：红色愤怒王冠 + 脉动愤怒标记 + 地面红色光环
+   - 周期性暴怒：12秒冷静 → 4秒暴怒（全图检测，无视距离/方向）
+   - 暴怒时对话"我要让你加班到死！"
+   - 暴怒时地面光环变亮+脉动
+   - halfCircleDetect 在暴怒时 range=99 + 跳过半球限制
+   - 验证：第7关 variant=rage HP=4，12秒后 enraged=true，玩家在 15.95u 外被检测扣血 ✓
+
+3. **屏幕中央事件通知**（EventBanner.tsx）：
+   - Boss 状态切换时屏幕中央弹出横幅（2秒，滑入滑出）
+   - 7 种事件：巡逻⚠️/开会📅/回头看👀/被惊动😡/眩晕💫/被干扰❓/手机响📱
+   - 不同颜色边框（红/紫/橙/红/黄/粉/蓝）
+   - store eventBanner 状态 + pushEventBanner/clearEventBanner
+   - 验证：强制 Patrol → 横幅"老板开始巡逻！"显示，VLM 确认 ✓
+
+### 验证结果（agent-browser + VLM）
+- Boss HP：第3关 HP=2，踢2次触发踉跄 ✓
+- 暴怒变体：第7关 variant=rage HP=4，12秒后 enraged=true，全图检测 ✓
+- 事件横幅：Patrol 触发"老板开始巡逻！"红色横幅，VLM 确认 ✓
+- HUD：Boss 体力条可见，VLM 确认 ✓
+- Lint 0 错误，无运行时异常，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless pointer lock 不可用**（同前轮，已 fallback 缓解）
+2. **性能**：headless ~16fps，真实浏览器 60fps
+3. **Boss 配饰小分辨率不可见**（同前轮）
+4. **暴怒计时器在低帧率下偏慢**：headless 16fps 导致 enrageTimer 倒计时略慢于实际时间，真实浏览器正常
+
+## 建议下一阶段优先事项
+1. **更多 Boss 变体**：开会模式（无敌+范围攻击）、愤怒阶段2（更高频检测）
+2. **音效增强**：Boss 变体专属音效（眼镜反光声、咖啡啜饮声、暴怒咆哮）
+3. **视觉细节**：Boss 配饰放大、暴怒时屏幕红色边缘特效
+4. **关卡内教程提示**：首次进入新变体关卡时显示变体说明
+5. **真机移动端测试**
+6. **移除 window.__engine debug hook**
+
+## 文件清单（本轮新增/修改）
+- 新增：src/game/components/EventBanner.tsx（屏幕中央事件通知）
+- 修改：src/game/engine/Boss.ts（+rage 变体、HP 系统、血条 3D、暴怒计时器、配饰动画、isEnraged getter）
+- 修改：src/game/engine/GameEngine.ts（+variantForLevel rage、bossMaxHpForLevel、pushBossEventBanner、startLevel 设置 HP）
+- 修改：src/game/store.ts（MinimapData +bossHP/bossMaxHP/bossEnraged、eventBanner 状态）
+- 修改：src/game/components/HUD.tsx（BossVariantAndSuspicion +HP 条 +暴怒标记 +rage 变体）
+- 修改：src/game/components/Game.tsx（+EventBanner 挂载）
+- 修改：src/game/components/StartScreen.tsx（VARIANT_FOR_LEVEL +rage 😡）

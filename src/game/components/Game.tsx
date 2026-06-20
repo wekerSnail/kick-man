@@ -16,6 +16,7 @@ import { TouchControls } from "./TouchControls";
 import { AchievementToast } from "./AchievementToast";
 import { ComboCounter } from "./ComboCounter";
 import { Gallery } from "./Gallery";
+import { EventBanner } from "./EventBanner";
 
 export default function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +91,9 @@ export default function Game() {
 
       {/* Achievement unlock toasts (always available) */}
       {ready && <AchievementToast />}
+
+      {/* Event banner (boss state change notifications) */}
+      {ready && <EventBanner />}
 
       <Toasts />
     </div>

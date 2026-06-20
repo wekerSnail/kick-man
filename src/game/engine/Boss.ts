@@ -175,7 +175,7 @@ export class Boss {
 
   // ===== Boss variant system =====
   // variant determines appearance + detection modifiers
-  variant: "normal" | "glasses" | "coffee" | "headphones" = "normal";
+  variant: "normal" | "glasses" | "coffee" | "headphones" | "rage" = "normal";
   // detection range multipliers (set by variant)
   private halfRangeBase = 5;
   private lookRangeBase = 6;
@@ -186,6 +186,18 @@ export class Boss {
   // suspicion meter (0..1) — rises with nearby kicks, decays over time
   suspicion = 0;
   private suspicionDecayPerSec = 0.08;
+
+  // ===== Boss HP system (multi-phase) =====
+  // Boss needs N hits to "stagger" (enter a longer Stunned phase), then HP resets.
+  // HP scales with level: 1-2 → 1, 3-4 → 2, 5-6 → 3, 7 → 4
+  bossHP = 1;
+  bossMaxHP = 1;
+  // rage mode (level 7): periodic enrage with full-map detection
+  private enraged = false;
+  private enrageTimer = 0; // counts down; when 0, toggles enrage
+  // HP bar 3D meshes
+  private bossHpBar: THREE.Mesh;
+  private bossHpBarBg: THREE.Mesh;
 
   // distracted target
   private distractTarget: THREE.Vector3 | null = null;
@@ -252,6 +264,22 @@ export class Boss {
     this.dialogueSprite.scale.set(3, 1.5, 1);
     this.dialogueSprite.visible = false;
     this.group.add(this.dialogueSprite);
+
+    // ===== Boss HP bar (visible when bossMaxHP > 1) =====
+    const hpBgGeo = new THREE.PlaneGeometry(1.4, 0.16);
+    const hpBgMat = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.7, depthTest: false });
+    this.bossHpBarBg = new THREE.Mesh(hpBgGeo, hpBgMat);
+    this.bossHpBarBg.position.set(0, 2.9, 0);
+    this.bossHpBarBg.renderOrder = 999;
+    this.bossHpBarBg.visible = false;
+    this.group.add(this.bossHpBarBg);
+    const hpGeo = new THREE.PlaneGeometry(1.3, 0.12);
+    const hpMat = new THREE.MeshBasicMaterial({ color: 0xef4444, transparent: true, opacity: 0.95, depthTest: false });
+    this.bossHpBar = new THREE.Mesh(hpGeo, hpMat);
+    this.bossHpBar.position.set(0, 2.9, 0.01);
+    this.bossHpBar.renderOrder = 1000;
+    this.bossHpBar.visible = false;
+    this.group.add(this.bossHpBar);
 
     // ===== Vision cone visualization =====
     // A semi-transparent cone on the ground showing the boss's current
@@ -504,7 +532,8 @@ export class Boss {
   // - glasses: +50% half-circle & look range (boss sees further)
   // - coffee: +30% patrol frequency (more alert, shorter timers)
   // - headphones: noise-immune (noise item has no effect)
-  setVariant(v: "normal" | "glasses" | "coffee" | "headphones") {
+  // - rage: periodic enrage with full-map detection (level 7)
+  setVariant(v: "normal" | "glasses" | "coffee" | "headphones" | "rage") {
     this.variant = v;
     switch (v) {
       case "glasses":
@@ -525,6 +554,14 @@ export class Boss {
         this.lookRangeBase = 6;
         this.patrolRangeBase = 7;
         this.noiseImmune = true;
+        break;
+      case "rage":
+        // rage: baseline ranges, but enrage mode periodically grants full-map detection
+        this.halfRangeBase = 5;
+        this.lookRangeBase = 6;
+        this.patrolRangeBase = 7;
+        this.noiseImmune = false;
+        this.enrageTimer = 12; // first enrage after 12s
         break;
       default:
         this.halfRangeBase = 5;
@@ -615,6 +652,38 @@ export class Boss {
         cush.rotation.z = Math.PI / 2;
         this.accessories.add(cush);
       }
+    } else if (this.variant === "rage") {
+      // rage: red angry crown + glowing aura ring on ground
+      const crownMat = this.mat(0xdc2626, { emissive: 0x991111, emissiveIntensity: 0.6 });
+      const crown = new THREE.Mesh(
+        new THREE.ConeGeometry(0.22, 0.25, 5),
+        crownMat
+      );
+      crown.position.set(0, 2.35, 0);
+      this.accessories.add(crown);
+      // anger mark (red sphere above head)
+      const anger = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xff3333 })
+      );
+      anger.position.set(0.15, 2.5, 0.2);
+      anger.userData.isAnger = true;
+      this.accessories.add(anger);
+      // ground aura ring
+      const aura = new THREE.Mesh(
+        new THREE.RingGeometry(0.6, 0.9, 24),
+        new THREE.MeshBasicMaterial({
+          color: 0xff3333,
+          transparent: true,
+          opacity: 0.4,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        })
+      );
+      aura.rotation.x = -Math.PI / 2;
+      aura.position.y = 0.04;
+      aura.userData.isAura = true;
+      this.accessories.add(aura);
     }
   }
 
@@ -705,6 +774,20 @@ export class Boss {
       this.showDialogue("啊——！", 1200);
       this.cb.onBossHit?.();
       return true;
+    }
+    // HP system: deduct HP per hit. If HP reaches 0 → longer stagger stun.
+    if (this.bossMaxHP > 1) {
+      this.bossHP -= 1;
+      if (this.bossHP <= 0) {
+        // staggered! longer stun (3s), reset HP
+        this.stunRemaining = 3;
+        this.setState("Stunned");
+        this.showDialogue("你…给我等着！", 2000);
+        this.bossHP = this.bossMaxHP;
+        this.suspicion = Math.min(1, this.suspicion + 0.5);
+        this.cb.onBossHit?.();
+        return true;
+      }
     }
     // Otherwise → Attacked state (swing hit)
     if (this.state !== "Attacked") {
@@ -879,9 +962,60 @@ export class Boss {
     // vision cone visualization (after facing/position updated)
     this.updateVisionCone();
 
+    // boss HP bar update
+    this.updateBossHpBar();
+
+    // rage mode timer (level 7 rage variant)
+    this.updateRage(dt);
+
     // position update
     this.group.position.x = this.x;
     this.group.position.z = this.z;
+  }
+
+  private updateBossHpBar() {
+    const show = this.bossMaxHP > 1;
+    this.bossHpBarBg.visible = show;
+    this.bossHpBar.visible = show;
+    if (show) {
+      const ratio = Math.max(0, this.bossHP / this.bossMaxHP);
+      this.bossHpBar.scale.x = Math.max(0.001, ratio);
+      this.bossHpBar.position.x = -(1 - ratio) * 0.65;
+      // color: green > orange > red as HP drops
+      const color = ratio > 0.6 ? 0xef4444 : ratio > 0.3 ? 0xf97316 : 0xfbbf24;
+      (this.bossHpBar.material as THREE.MeshBasicMaterial).color.setHex(color);
+    }
+  }
+
+  private updateRage(dt: number) {
+    if (this.variant !== "rage") return;
+    this.enrageTimer -= dt;
+    if (this.enrageTimer <= 0) {
+      this.enraged = !this.enraged;
+      this.enrageTimer = this.enraged ? 4 : 10; // enraged 4s, calm 10s
+      if (this.enraged) {
+        this.showDialogue("我要让你加班到死！", 2000);
+        this.cb.onStateChange(this.state); // trigger UI refresh
+      }
+    }
+    // animate anger marker (pulse)
+    this.accessories.children.forEach((c) => {
+      if (c instanceof THREE.Mesh && c.userData.isAnger) {
+        const s = 1 + Math.sin(this.swayPhase * 6) * 0.3;
+        c.scale.set(s, s, s);
+      }
+      if (c instanceof THREE.Mesh && c.userData.isAura) {
+        const mat = c.material as THREE.MeshBasicMaterial;
+        mat.opacity = this.enraged ? 0.7 : 0.3;
+        const s = 1 + Math.sin(this.swayPhase * 3) * 0.15;
+        c.scale.set(s, s, s);
+      }
+    });
+  }
+
+  // is boss currently enraged (full-map detection)?
+  isEnraged(): boolean {
+    return this.enraged;
   }
 
   private angleDiff(target: number, current: number): number {
@@ -954,10 +1088,13 @@ export class Boss {
     const dx = ctx.playerPos.x - this.x;
     const dz = ctx.playerPos.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
-    if (dist > this.halfRangeBase) return;
+    // enraged boss detects anywhere on the map (full-map detection)
+    const range = this.enraged ? 99 : this.halfRangeBase;
+    if (dist > range) return;
     // half-circle toward +Z (player area). Normal boss faces -Z; the "awareness" is the back hemisphere (+Z)
     // i.e., player z > boss z (in front of awareness)
-    if (dz < 0.2) return; // only +Z hemisphere
+    // enraged boss detects in all directions
+    if (!this.enraged && dz < 0.2) return; // only +Z hemisphere
     // check exemptions
     if (ctx.playerInvisible) return;
     if (ctx.playerObscuredBySmoke) return;

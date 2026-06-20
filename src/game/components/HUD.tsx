@@ -226,6 +226,7 @@ function BossVariantAndSuspicion() {
     glasses: { icon: "🤓", label: "戴眼镜·视野更远", color: "text-sky-300" },
     coffee: { icon: "☕", label: "喝咖啡·更警觉", color: "text-orange-300" },
     headphones: { icon: "🎧", label: "戴耳机·噪音免疫", color: "text-purple-300" },
+    rage: { icon: "😡", label: "暴怒·周期全图检测", color: "text-red-400" },
   };
   const vi = variantInfo[minimap.bossVariant] || variantInfo.normal;
   const susp = minimap.suspicion;
@@ -233,12 +234,38 @@ function BossVariantAndSuspicion() {
   const suspColor =
     suspLevel === "danger" ? "bg-red-500" : suspLevel === "warn" ? "bg-amber-400" : "bg-emerald-400";
   const suspLabel = suspLevel === "danger" ? "高度警觉!" : suspLevel === "warn" ? "起疑心" : "放松";
+  const showHP = minimap.bossMaxHP > 1;
+  const enraged = minimap.bossEnraged;
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className="text-lg">{vi.icon}</span>
         <span className={`text-[11px] font-semibold ${vi.color}`}>{vi.label}</span>
+        {enraged && (
+          <span className="text-[9px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse ml-auto">
+            暴怒中！
+          </span>
+        )}
       </div>
+
+      {/* Boss HP bar (only for multi-HP bosses) */}
+      {showHP && (
+        <div className="mb-1.5">
+          <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
+            <span>老板体力</span>
+            <span className="text-red-300 font-bold tabular-nums">
+              {minimap.bossHP}<span className="text-white/40">/{minimap.bossMaxHP}</span>
+            </span>
+          </div>
+          <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-200"
+              style={{ width: `${(minimap.bossHP / minimap.bossMaxHP) * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between text-[9px] uppercase tracking-wider text-white/50 mb-0.5">
         <span>警觉度</span>
         <span

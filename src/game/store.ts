@@ -26,7 +26,10 @@ export interface MinimapData {
   bz: number; // boss z
   bfacing: number; // boss facing radians
   bossState: BossStateName;
-  bossVariant: "normal" | "glasses" | "coffee" | "headphones";
+  bossVariant: "normal" | "glasses" | "coffee" | "headphones" | "rage";
+  bossHP: number;
+  bossMaxHP: number;
+  bossEnraged: boolean;
   suspicion: number; // 0..1 boss suspicion meter
   // patrol cone (when patrolling)
   patrolCone?: { range: number; angleDeg: number };
@@ -145,6 +148,11 @@ interface GameState {
   achievementQueue: { id: string; name: string; icon: string }[];
   pushAchievement: (a: { id: string; name: string; icon: string }) => void;
   shiftAchievement: () => void;
+
+  // event banner (screen-center notifications for boss state changes)
+  eventBanner: { text: string; icon: string; color: string } | null;
+  pushEventBanner: (text: string, icon: string, color: string) => void;
+  clearEventBanner: () => void;
 
   // last level result (for level-transition screen)
   lastLevelResult: { level: number; stars: number; time: number; detections: number; damage: number } | null;
@@ -409,6 +417,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     })),
   shiftAchievement: () =>
     set((st) => ({ achievementQueue: st.achievementQueue.slice(1) })),
+
+  eventBanner: null,
+  pushEventBanner: (text, icon, color) =>
+    set({ eventBanner: { text, icon, color } }),
+  clearEventBanner: () => set({ eventBanner: null }),
 
   lastLevelResult: null,
   setLastLevelResult: (r) => set({ lastLevelResult: r }),

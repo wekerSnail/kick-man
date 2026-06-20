@@ -5,6 +5,7 @@ import { LEVELS, WEAPONS, CONSUMABLES } from "../constants";
 import { useGameStore } from "../store";
 
 const VARIANT_FOR_LEVEL = (level: number): string => {
+  if (level >= 7) return "😡";
   if (level >= 6) return "🎧";
   if (level === 5) return "☕";
   if (level >= 3) return "🤓";

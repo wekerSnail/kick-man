@@ -222,7 +222,11 @@ export class GameEngine {
 
     // boss
     this.boss = new Boss({
-      onStateChange: (s) => this.store.setBossState(s),
+      onStateChange: (s) => {
+        this.store.setBossState(s);
+        // push event banner for key state changes
+        this.pushBossEventBanner(s);
+      },
       onDialogue: (text, dur) => {
         this.store.setBossDialogue(text);
         if (text === null && dur === undefined) {
@@ -941,6 +945,24 @@ export class GameEngine {
     this.weaponInHand = g;
   }
 
+  // ===== boss event banner =====
+  private pushBossEventBanner(state: string) {
+    const banners: Record<string, { text: string; icon: string; color: string }> = {
+      Patrol: { text: "老板开始巡逻！", icon: "⚠️", color: "bg-red-700/90 border-red-400" },
+      Meeting: { text: "老板开会中（攻击无效）", icon: "📅", color: "bg-purple-700/90 border-purple-400" },
+      LookingBack: { text: "老板回头看！", icon: "👀", color: "bg-amber-600/90 border-amber-300" },
+      Attacked: { text: "老板被惊动！", icon: "😡", color: "bg-red-600/90 border-red-300" },
+      Stunned: { text: "老板眩晕中！", icon: "💫", color: "bg-yellow-500/90 border-yellow-200" },
+      Distracted: { text: "老板被噪音吸引", icon: "❓", color: "bg-pink-600/90 border-pink-300" },
+      PhoneFlashing: { text: "老板手机响了", icon: "📱", color: "bg-sky-600/90 border-sky-300" },
+      Normal: { text: "", icon: "", color: "" },
+    };
+    const b = banners[state];
+    if (b && b.text) {
+      this.store.pushEventBanner(b.text, b.icon, b.color);
+    }
+  }
+
   // ===== detection callback =====
   private onPlayerDetected(amount: number, line: string) {
     if (this.screen !== "playing") return;
@@ -1054,12 +1076,21 @@ export class GameEngine {
     this.store.setScreen("playing");
   }
 
-  // Boss variant per level: levels 1-2 normal, 3-4 glasses, 5 coffee, 6-7 headphones
-  private variantForLevel(level: number): "normal" | "glasses" | "coffee" | "headphones" {
+  // Boss variant per level: 1-2 normal, 3-4 glasses, 5 coffee, 6 headphones, 7 rage
+  private variantForLevel(level: number): "normal" | "glasses" | "coffee" | "headphones" | "rage" {
+    if (level >= 7) return "rage";
     if (level >= 6) return "headphones";
     if (level === 5) return "coffee";
     if (level >= 3) return "glasses";
     return "normal";
+  }
+
+  // Boss max HP per level: 1-2 → 1, 3-4 → 2, 5-6 → 3, 7 → 4
+  private bossMaxHpForLevel(level: number): number {
+    if (level >= 7) return 4;
+    if (level >= 5) return 3;
+    if (level >= 3) return 2;
+    return 1;
   }
 
   private startLevel(level: number) {
@@ -1118,9 +1149,11 @@ export class GameEngine {
       });
     }
     this.smokeClouds = [];
-    // boss reset with difficulty scaling + variant (higher levels = faster boss + different variants)
+    // boss reset with difficulty scaling + variant + HP (higher levels = faster boss + different variants)
     this.boss.setDifficulty(level);
     this.boss.setVariant(this.variantForLevel(level));
+    this.boss.bossMaxHP = this.bossMaxHpForLevel(level);
+    this.boss.bossHP = this.boss.bossMaxHP;
     this.boss.reset(level);
     // store
     this.store.setKicks(0);
@@ -1739,6 +1772,9 @@ export class GameEngine {
       bfacing: this.boss.facingY,
       bossState: bs,
       bossVariant: this.boss.variant,
+      bossHP: this.boss.bossHP,
+      bossMaxHP: this.boss.bossMaxHP,
+      bossEnraged: this.boss.isEnraged(),
       suspicion: this.boss.suspicion,
       patrolCone,
       halfRange,
