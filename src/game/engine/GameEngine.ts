@@ -1147,6 +1147,8 @@ export class GameEngine {
   }
 
   private startLevel(level: number) {
+    // clear FPS reward from previous level
+    this.store.setFpsReward(null);
     // reset player
     this.px = WORLD.playerStart.x;
     this.pz = WORLD.playerStart.z;
@@ -1320,12 +1322,33 @@ export class GameEngine {
   }
 
   private exitFPS() {
+    const score = this.store.fpsScore;
     if (this.fpsMode) {
       this.fpsMode.stop();
       this.fpsMode = null;
     }
-    // clear FPS store state so no FPS UI lingers
-    // setFps doesn't accept null weapon, so we directly set via store
+
+    // Calculate FPS rewards based on score
+    let reward: { kind: ConsumableKind; count: number } | null = null;
+    if (score >= 200) {
+      const pool: ConsumableKind[] = ["speed", "invis", "combo", "keyboard", "smoke"];
+      const kind = pool[Math.floor(Math.random() * pool.length)];
+      reward = { kind, count: 2 };
+    } else if (score >= 100) {
+      const pool: ConsumableKind[] = ["speed", "invis", "noise", "combo", "keyboard", "smoke"];
+      const kind = pool[Math.floor(Math.random() * pool.length)];
+      reward = { kind, count: 1 };
+    }
+    this.store.setFpsReward(reward);
+
+    // Add reward items to inventory
+    if (reward) {
+      for (let i = 0; i < reward.count; i++) {
+        this.store.addItem(reward.kind, 1);
+      }
+    }
+
+    // Clear FPS store state so no FPS UI lingers
     useGameStore.setState({
       fpsWeapon: null,
       fpsTimeLeft: 30,

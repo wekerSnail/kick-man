@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useGameStore } from "../store";
-import { LEVELS } from "../constants";
+import { LEVELS, itemIcon, itemName } from "../constants";
 
 export function LevelTransition({
   onNext,
@@ -17,6 +17,7 @@ export function LevelTransition({
   const stars = useGameStore((s) => s.stars);
   const bestTimes = useGameStore((s) => s.bestTimes);
   const levelEvents = useGameStore((s) => s.levelEvents);
+  const fpsReward = useGameStore((s) => s.fpsReward);
   const [showTimeline, setShowTimeline] = useState(false);
   const isLast = level >= LEVELS.length;
 
@@ -196,6 +197,11 @@ export function LevelTransition({
             <p className="text-white/40 text-xs mt-4 relative">
               💡 FPS 模式可任意痛击老板 30 秒，无胜负压力
             </p>
+            {fpsReward && (
+              <div className="mt-2 px-3 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 text-sm animate-[popin_0.3s_ease-out]">
+                🎉 FPS 奖励：{itemIcon(fpsReward.kind)} {itemName(fpsReward.kind)} ×{fpsReward.count} 已加入背包！
+              </div>
+            )}
           </>
         ) : (
           <div className="text-white/60 relative">即将进入通关画面…</div>

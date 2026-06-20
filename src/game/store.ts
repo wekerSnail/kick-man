@@ -128,6 +128,10 @@ interface GameState {
   fpsScore: number;
   setFps: (p: Partial<{ weapon: "laser" | "rocket" | "grenade"; timeLeft: number; ammo: number; score: number }>) => void;
 
+  // FPS reward (shown in level transition)
+  fpsReward: { kind: ConsumableKind; count: number } | null;
+  setFpsReward: (reward: { kind: ConsumableKind; count: number } | null) => void;
+
   // toasts
   toasts: ToastMsg[];
   pushToast: (text: string, kind?: ToastMsg["kind"]) => void;
@@ -358,6 +362,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   fpsTimeLeft: 30,
   fpsAmmo: 999,
   fpsScore: 0,
+  fpsReward: null,
+  setFpsReward: (reward) => set({ fpsReward: reward }),
   setFps: (p) =>
     set((st) => ({
       fpsWeapon: p.weapon ?? st.fpsWeapon,
