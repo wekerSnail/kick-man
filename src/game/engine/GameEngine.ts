@@ -980,6 +980,9 @@ export class GameEngine {
     // compute star rating
     const stars = this.computeStars();
     this.store.setStars(this.store.level, stars);
+    // accumulate total kicks + max level reached (persisted)
+    this.store.addKicksTotal(this.store.kicks);
+    this.store.setMaxLevelReached(Math.max(this.store.level + 1, this.store.level));
     // build last level result
     this.store.setLastLevelResult({
       level: this.store.level,

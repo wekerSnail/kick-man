@@ -15,11 +15,13 @@ import { PauseMenu } from "./PauseMenu";
 import { TouchControls } from "./TouchControls";
 import { AchievementToast } from "./AchievementToast";
 import { ComboCounter } from "./ComboCounter";
+import { Gallery } from "./Gallery";
 
 export default function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [ready, setReady] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
   const screen = useGameStore((s) => s.screen);
 
   useEffect(() => {
@@ -59,6 +61,7 @@ export default function Game() {
           onSelectLevel={(level) => {
             engineRef.current?.startAtLevel(level);
           }}
+          onShowGallery={() => setShowGallery(true)}
         />
       )}
       {ready && screen === "level-transition" && (
@@ -81,6 +84,9 @@ export default function Game() {
 
       {/* Pause menu overlay (works on top of playing screen) */}
       {ready && <PauseMenu />}
+
+      {/* Gallery (achievements + items) overlay */}
+      {ready && showGallery && <Gallery onClose={() => setShowGallery(false)} />}
 
       {/* Achievement unlock toasts (always available) */}
       {ready && <AchievementToast />}

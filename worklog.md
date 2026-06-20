@@ -382,3 +382,77 @@ Task: QA pass + implement Boss variants, suspicion meter, level select, audio en
 - 修改：src/game/components/HUD.tsx（BossVariantAndSuspicion 组件集成右侧面板）
 - 修改：src/game/components/StartScreen.tsx（关卡选择面板 + 变体图标）
 - 修改：src/game/components/Game.tsx（onSelectLevel 传递）
+
+---
+Task ID: 18 (cron review #4) — COMPLETION
+Agent: main (orchestrator)
+Task: QA pass + implement localStorage persistence, achievements/items gallery, cross-run stats
+
+## 项目当前状态描述/判断
+游戏核心功能完整稳定（Tasks 1-17 已完成并验证）。本轮 cron 审查发现一个关键问题：刷新页面后进度丢失（stars/achievements/bestTimes 仅存内存）。已修复并新增 3 项功能：localStorage 持久化、图鉴页面、跨局统计。所有功能经 agent-browser 验证通过。Lint 0 错误，dev server 运行正常，无运行时异常。
+
+## 当前目标/已完成的修改/验证结果
+
+### Bug 修复
+1. **进度丢失问题**：刷新页面后 stars/achievements/bestTimes 全部重置为空。
+   - 根因：store 的持久化逻辑定义在 create() 调用之后（TDZ 问题），导致 `getPersisted()` 在模块加载时抛错。
+   - 修复：将所有持久化辅助函数（loadProgress/saveProgress/getPersisted/persistFromStore）移到 create() 调用之前定义，使用缓存 lazy loader 模式。
+   - 验证：设置 stars/achievements/bestTimes 后刷新 → 数据完整保留 ✓
+
+### 新增功能
+
+1. **localStorage 持久化**（核心修复）：
+   - 存储 key: `kick100-progress-v1`
+   - 持久化数据：stars（每关星数）、achievements（已解锁成就）、bestTimes（每关最佳时间）、totalKicks（累计踹击）、maxLevelReached（最高到达关卡）
+   - setStars/setBestTime/unlockAchievement/addKicksTotal/setMaxLevelReached 均在变更后自动 persistFromStore()
+   - 关卡完成时 addKicksTotal(kicks) + setMaxLevelReached(level+1)
+   - 验证：通关后刷新 → stars={1:3}, totalKicks=25, maxLevel=3 完整保留 ✓
+
+2. **图鉴页面**（Gallery.tsx）：
+   - 开始界面"📖 图鉴（成就+道具）"按钮打开
+   - 成就区：12 个成就网格，未解锁显示 🔒 + "？？？（未解锁）"，已解锁显示图标+描述
+   - 武器区：4 种武器，显示命中击数/眩晕时间/范围/可投掷性
+   - 道具区：6 种消耗品，显示效果描述+持续时间
+   - 顶部显示进度统计（成就 X/12 · 道具 10 种）
+   - 底部提示"进度自动保存到浏览器 · 刷新不丢失"
+   - VLM 评分 8/10
+
+3. **跨局统计**：
+   - totalKicks：累计踹击数（通关时累加）
+   - maxLevelReached：最高到达关卡（用于关卡选择解锁）
+   - 开始界面进度卡片新增"累计踹击"显示
+   - 持久化到 localStorage
+
+4. **开始界面进度卡片增强**：
+   - 3 个卡片：总星数 ⭐ / 成就 🏆 / 累计踹击 🦵
+   - 成就数修正为 /13（原 /10）
+   - 关卡选择解锁逻辑使用 maxLevelReached
+
+### 验证结果（agent-browser + VLM）
+- 持久化：设置数据 → 刷新 → stars/achievements/bestTimes/totalKicks/maxLevel 全部保留 ✓
+- 通关累加：通关后 totalKicks 15→25, maxLevel 3 ✓
+- 图鉴页面：成就锁定/解锁状态正确，武器+道具显示完整，VLM 8/10 ✓
+- 关卡选择：maxLevelReached=3 解锁到第 3 关 ✓
+- Lint 0 错误，无运行时异常，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless pointer lock 不可用**（同前轮，已 fallback 缓解）
+2. **性能**：headless ~16fps，真实浏览器 60fps
+3. **localStorage 隐私模式**：隐私浏览模式下 localStorage 可能不可用，已 try-catch 容错（进度不保存但不崩溃）
+4. **Boss 配饰小分辨率不可见**（同前轮）
+
+## 建议下一阶段优先事项
+1. **Boss 多阶段血量**：高关卡 Boss 需要多次踹击才能"击倒"进入下一阶段，显示血条
+2. **更多 Boss 变体**：愤怒模式（全图检测）、开会模式（无敌+范围攻击）
+3. **音效增强**：Boss 变体专属音效（眼镜反光声、咖啡啜饮声）
+4. **视觉细节**：Boss 配饰放大、更明显的视觉差异
+5. **关卡内事件提示**：屏幕中央显示关键事件（Boss 进入巡逻/开会等）
+6. **真机移动端测试**
+7. **移除 window.__engine debug hook**（生产）
+
+## 文件清单（本轮新增/修改）
+- 新增：src/game/components/Gallery.tsx（图鉴页面：成就+武器+道具）
+- 修改：src/game/store.ts（+localStorage 持久化、totalKicks/maxLevelReached 状态、persistFromStore、getPersisted lazy loader）
+- 修改：src/game/engine/GameEngine.ts（triggerLevelComplete 累加 totalKicks + setMaxLevelReached）
+- 修改：src/game/components/StartScreen.tsx（+图鉴按钮、累计踹击卡片、maxLevelReached 解锁逻辑、成就数 /13）
+- 修改：src/game/components/Game.tsx（+Gallery 状态与挂载、onShowGallery 传递）

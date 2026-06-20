@@ -11,7 +11,7 @@ const VARIANT_FOR_LEVEL = (level: number): string => {
   return "👨‍💼";
 };
 
-export function StartScreen({ onStart, onSelectLevel }: { onStart: () => void; onSelectLevel?: (level: number) => void }) {
+export function StartScreen({ onStart, onSelectLevel, onShowGallery }: { onStart: () => void; onSelectLevel?: (level: number) => void; onShowGallery?: () => void }) {
   const [showHelp, setShowHelp] = useState(false);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
   const stars = useGameStore((s) => s.stars);
@@ -20,8 +20,14 @@ export function StartScreen({ onStart, onSelectLevel }: { onStart: () => void; o
   const maxStars = LEVELS.length * 3;
   const achievementCount = Object.values(achievements).filter(Boolean).length;
   const hasProgress = totalStars > 0 || achievementCount > 0;
-  // max unlocked level = highest level with stars + 1 (or 1 if none)
-  const maxUnlocked = Math.max(1, ...Object.keys(stars).map(Number).filter(l => stars[l] > 0).map(l => l + 1).concat(1));
+  // max unlocked level = maxLevelReached (persisted), or derived from stars
+  const maxLevelReached = useGameStore((s) => s.maxLevelReached);
+  const totalKicks = useGameStore((s) => s.totalKicks);
+  const maxUnlocked = Math.max(
+    1,
+    maxLevelReached,
+    ...Object.keys(stars).map(Number).filter(l => stars[l] > 0).map(l => l + 1).concat(1)
+  );
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-gradient-to-br from-[#1a1a2e] via-[#16213e] to-[#0f3460] text-white">
       {/* animated bg shapes */}
@@ -56,7 +62,7 @@ export function StartScreen({ onStart, onSelectLevel }: { onStart: () => void; o
 
         {/* Progress summary (only if returning player) */}
         {hasProgress && (
-          <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="flex items-center justify-center gap-3 mb-6 flex-wrap">
             <div className="bg-black/40 backdrop-blur-sm rounded-xl px-4 py-2 border border-amber-400/20 flex items-center gap-2">
               <span className="text-xl">⭐</span>
               <div className="text-left">
@@ -71,7 +77,16 @@ export function StartScreen({ onStart, onSelectLevel }: { onStart: () => void; o
               <div className="text-left">
                 <div className="text-[10px] uppercase tracking-wider text-white/50 leading-none">成就</div>
                 <div className="text-lg font-bold tabular-nums leading-tight">
-                  {achievementCount}<span className="text-white/40 text-xs">/10</span>
+                  {achievementCount}<span className="text-white/40 text-xs">/13</span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-black/40 backdrop-blur-sm rounded-xl px-4 py-2 border border-rose-400/20 flex items-center gap-2">
+              <span className="text-xl">🦵</span>
+              <div className="text-left">
+                <div className="text-[10px] uppercase tracking-wider text-white/50 leading-none">累计踹击</div>
+                <div className="text-lg font-bold tabular-nums leading-tight">
+                  {totalKicks}
                 </div>
               </div>
             </div>
@@ -102,6 +117,12 @@ export function StartScreen({ onStart, onSelectLevel }: { onStart: () => void; o
               {showLevelSelect ? "收起关卡选择" : "🎯 选择关卡（刷星）"}
             </button>
           )}
+          <button
+            onClick={() => onShowGallery?.()}
+            className="text-sky-300/90 hover:text-sky-200 text-sm underline underline-offset-4 font-medium"
+          >
+            📖 图鉴（成就+道具）
+          </button>
         </div>
 
         {/* Level select panel */}

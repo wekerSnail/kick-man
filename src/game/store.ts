@@ -149,12 +149,58 @@ interface GameState {
   // last level result (for level-transition screen)
   lastLevelResult: { level: number; stars: number; time: number; detections: number; damage: number } | null;
   setLastLevelResult: (r: { level: number; stars: number; time: number; detections: number; damage: number } | null) => void;
+
+  // cross-run stats (persisted)
+  totalKicks: number; // total kicks across all runs
+  maxLevelReached: number; // highest level reached
+  addKicksTotal: (n: number) => void;
+  setMaxLevelReached: (n: number) => void;
 }
 
 let toastId = 1;
 
 function emptyInv(): InventorySlot[] {
   return Array.from({ length: INVENTORY_SIZE }, () => ({ kind: null, count: 0 }));
+}
+
+// ===== Persistence (localStorage) — must be defined BEFORE create() =====
+const STORAGE_KEY = "kick100-progress-v1";
+
+interface PersistedProgress {
+  stars: Record<number, number>;
+  achievements: Record<string, boolean>;
+  bestTimes: Record<number, number>;
+  totalKicks: number;
+  maxLevelReached: number;
+}
+
+function loadProgress(): Partial<PersistedProgress> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as Partial<PersistedProgress>;
+  } catch {
+    return {};
+  }
+}
+
+function saveProgress(data: PersistedProgress) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // storage full or disabled — ignore
+  }
+}
+
+// cached lazy loader (only reads once, on first access — client-side)
+let _persistedCache: Partial<PersistedProgress> | null = null;
+function getPersisted(): Partial<PersistedProgress> {
+  if (_persistedCache === null) {
+    _persistedCache = loadProgress();
+  }
+  return _persistedCache;
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
@@ -297,22 +343,26 @@ export const useGameStore = create<GameState>((set, get) => ({
   soundOn: true,
   toggleSound: () => set((st) => ({ soundOn: !st.soundOn })),
 
-  bestTimes: {},
+  bestTimes: getPersisted().bestTimes || {},
   setBestTime: (level, time) =>
     set((st) => {
       const prev = st.bestTimes[level];
       if (prev === undefined || time < prev) {
-        return { bestTimes: { ...st.bestTimes, [level]: time } };
+        const next = { bestTimes: { ...st.bestTimes, [level]: time } };
+        persistFromStore({ ...st, ...next });
+        return next;
       }
       return {};
     }),
 
-  stars: {},
+  stars: getPersisted().stars || {},
   setStars: (level, starCount) =>
     set((st) => {
       const prev = st.stars[level] || 0;
       if (starCount > prev) {
-        return { stars: { ...st.stars, [level]: starCount } };
+        const next = { stars: { ...st.stars, [level]: starCount } };
+        persistFromStore({ ...st, ...next });
+        return next;
       }
       return {};
     }),
@@ -341,14 +391,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentCombo: 0,
     }),
 
-  achievements: {},
+  achievements: getPersisted().achievements || {},
   unlockAchievement: (id, name) =>
     set((st) => {
       if (st.achievements[id]) return {};
-      return {
+      const next = {
         achievements: { ...st.achievements, [id]: true },
         achievementQueue: [...st.achievementQueue, { id, name, icon: ACHIEVEMENT_ICONS[id] || "🏆" }],
       };
+      persistFromStore({ ...st, ...next });
+      return next;
     }),
   achievementQueue: [],
   pushAchievement: (a) =>
@@ -360,6 +412,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   lastLevelResult: null,
   setLastLevelResult: (r) => set({ lastLevelResult: r }),
+
+  // cross-run persisted stats
+  totalKicks: getPersisted().totalKicks || 0,
+  maxLevelReached: getPersisted().maxLevelReached || 1,
+  addKicksTotal: (n) =>
+    set((st) => {
+      const next = { totalKicks: st.totalKicks + n };
+      persistFromStore({ ...st, ...next });
+      return next;
+    }),
+  setMaxLevelReached: (n) =>
+    set((st) => {
+      if (n <= st.maxLevelReached) return {};
+      const next = { maxLevelReached: n };
+      persistFromStore({ ...st, ...next });
+      return next;
+    }),
 }));
 
 // Achievement icons
@@ -386,4 +455,15 @@ export function isWeapon(kind: ItemKind | null): kind is WeaponKind {
 }
 export function isConsumable(kind: ItemKind | null): kind is ConsumableKind {
   return kind !== null && !isWeapon(kind);
+}
+
+// helper to persist current state (defined after GameState type is available)
+function persistFromStore(state: GameState) {
+  saveProgress({
+    stars: state.stars,
+    achievements: state.achievements,
+    bestTimes: state.bestTimes,
+    totalKicks: state.totalKicks,
+    maxLevelReached: state.maxLevelReached,
+  });
 }
