@@ -1505,6 +1505,10 @@ export class Boss {
     const dz = ctx.playerPos.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > range) return;
+    // direction check: boss faces +Z (facingY ≈ 0) during LookingBack.
+    // Only detect player in the front hemisphere (player z > boss z, i.e. dz > 0).
+    // This prevents detecting players behind the boss (at -Z / desk side).
+    if (dz < 0.3) return; // player must be clearly in front (+Z hemisphere)
     if (ctx.playerInvisible) return;
     if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
@@ -1553,6 +1557,9 @@ export class Boss {
     const dz = ctx.playerPos.z - this.z;
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > range) return;
+    // direction check: boss faces +Z (facingY ≈ 0) during Attacked observe.
+    // Only detect player in the front hemisphere (player z > boss z, i.e. dz > 0).
+    if (dz < 0.3) return; // player must be clearly in front (+Z hemisphere)
     if (ctx.playerInvisible) return;
     if (ctx.playerObscuredBySmoke) return;
     if (ctx.playerHidden) return;
