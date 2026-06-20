@@ -877,3 +877,51 @@ Task: Expand room size + add more hiding spots + reposition furniture for better
 - 修改：src/game/engine/OfficeScene.ts（家具重新布局, 藏身点 id 前缀匹配, 地毯/墙画/窗户/吊灯增加）
 - 修改：src/game/engine/Boss.ts（PATROL_WAYPOINTS 12→14 个，覆盖更大房间）
 - 修改：src/game/engine/GameEngine.ts（camOffset/FoV/远裁面/雾距 调整以适配大房间）
+
+---
+Task ID: 24 (background game fix) — COMPLETION
+Agent: main (orchestrator)
+Task: Fix game running in background during start/transition screens, causing boss event popups
+
+## 项目当前状态描述/判断
+用户反馈：在开始界面、通关过渡界面，游戏似乎在后台运行，会弹出老板交互提示（event banner / dialogue）。根因是引擎 `this.screen` 初始值默认为 "playing"，而 store 的 screen 初始为 "start"，两者不同步导致游戏循环在开始界面仍运行 boss 更新逻辑。已修复。
+
+## 当前目标/已完成的修改/验证结果
+
+### 根因分析
+1. **引擎 screen 初始值不匹配**：`GameEngine.ts` 中 `private screen = "playing"`（默认），但 store 的 `screen` 初始为 `"start"`。页面加载时，引擎认为处于 playing 状态，游戏循环运行 boss.update()，触发 onStateChange → pushBossEventBanner → eventBanner 弹出。
+2. **transient UI 状态未清理**：关卡完成/游戏结束时，eventBanner/variantTutorial/showLevel1Tutorial/bossDialogue 未被清除，残留到下一界面。
+3. **pushBossEventBanner 无 screen 守卫**：即使在非 playing 状态被调用，也会推送 banner。
+
+### Bug 修复
+
+1. **引擎 screen 初始值修正**（GameEngine.ts）：
+   - `private screen = "playing"` → `private screen = "start"`
+   - 类型增加 `"start"` 选项
+   - 验证：页面加载后 engineScreen="start"，游戏循环不运行 boss 更新 ✓
+
+2. **pushBossEventBanner 增加 screen 守卫**（GameEngine.ts）：
+   - 开头添加 `if (this.screen !== "playing" || this.paused) return;`
+   - 确保 banner 只在活跃游戏时推送
+
+3. **transient UI 状态清理**（GameEngine.ts）：
+   - `triggerLevelComplete`：清除 eventBanner/variantTutorial/showLevel1Tutorial
+   - `triggerGameOver`：同上
+   - `startLevel`：清除上一关残留的 transient 状态
+   - `onScreenChange("start")`：返回主菜单时清除所有 transient 状态 + bossDialogue + 停止变体环境音
+
+### 验证结果（agent-browser）
+- 开始界面：engineScreen="start", eventBanner=null, bossDialogue=null, levelTime=0 ✓
+- 等待 10s 后：无 event 弹出，bossState 不变，levelTime 不增 ✓
+- 通关过渡界面：eventBanner=null, variantTutorial=null, showLevel1Tutorial=false ✓
+- 等待 10s 后：bossState 冻结（phase.t 不变），eventBanner 保持 null ✓
+- 返回主菜单：engineScreen="start", paused=true, eventBanner=null, bossDialogue=null ✓
+- VLM 确认开始界面 "clean—no popups, banners, toasts, or event notifications overlapping" ✓
+- Lint 0 错误，dev server 200 OK
+
+## 未解决问题或风险
+1. **Headless 环境 pointer lock 不可用**（同前轮）
+2. **bossState 残留显示**：通关后 bossState 仍显示通关瞬间的值（如 PhoneFlashing），但不影响游戏（不触发事件）。可在 startLevel 中重置为 "Normal"。
+
+## 文件清单（本轮修改）
+- 修改：src/game/engine/GameEngine.ts（screen 初始值 "playing"→"start", pushBossEventBanner 守卫, triggerLevelComplete/triggerGameOver/startLevel/onScreenChange 清理 transient 状态）

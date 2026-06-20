@@ -143,7 +143,7 @@ export class GameEngine {
   private fpsMode: FPSMode | null = null;
 
   // screen state (local mirror to avoid spamming store)
-  private screen: "playing" | "level-transition" | "game-over" | "victory" | "fps" = "playing";
+  private screen: "playing" | "level-transition" | "game-over" | "victory" | "fps" | "start" = "start";
   private paused = false;
 
   // detection flash
@@ -949,6 +949,8 @@ export class GameEngine {
 
   // ===== boss event banner =====
   private pushBossEventBanner(state: string) {
+    // only show banners during active gameplay (not during transitions/menus)
+    if (this.screen !== "playing" || this.paused) return;
     const banners: Record<string, { text: string; icon: string; color: string }> = {
       Patrol: { text: "老板开始巡逻！", icon: "⚠️", color: "bg-red-700/90 border-red-400" },
       Meeting: { text: "老板开会中（攻击无效）", icon: "📅", color: "bg-purple-700/90 border-purple-400" },
@@ -1007,6 +1009,10 @@ export class GameEngine {
     audio.gameOver();
     audio.stopVariantAmbient();
     this.screen = "game-over";
+    // clear transient UI state so it doesn't linger on game-over screen
+    this.store.clearEventBanner();
+    this.store.dismissVariantTutorial();
+    this.store.dismissLevel1Tutorial();
     setTimeout(() => {
       this.store.setScreen("game-over");
     }, 3000); // 3s delay per design
@@ -1019,6 +1025,10 @@ export class GameEngine {
     audio.stopVariantAmbient();
     this.screen = "level-transition";
     this.paused = true;
+    // clear transient UI state so it doesn't linger on level-transition screen
+    this.store.clearEventBanner();
+    this.store.dismissVariantTutorial();
+    this.store.dismissLevel1Tutorial();
     // record best time for this level
     this.store.setBestTime(this.store.level, this.levelTime);
     // compute star rating
@@ -1099,6 +1109,15 @@ export class GameEngine {
       this.startLevel(this.store.level);
     } else if (screen === "fps") {
       this.enterFPS();
+    } else if (screen === "start") {
+      // returning to main menu — clear all transient game state
+      this.screen = "start";
+      this.paused = true;
+      this.store.clearEventBanner();
+      this.store.dismissVariantTutorial();
+      this.store.dismissLevel1Tutorial();
+      this.store.setBossDialogue(null);
+      audio.stopVariantAmbient();
     }
   }
 
@@ -1147,6 +1166,10 @@ export class GameEngine {
     this.usedWeaponThisLevel = false;
     this.usedItemsThisLevel = false;
     this.wasEnragedLastFrame = false;
+    // clear transient UI state from previous level
+    this.store.clearEventBanner();
+    this.store.dismissVariantTutorial();
+    this.store.dismissLevel1Tutorial();
     // reset run stats
     this.store.resetRunStats();
     this.store.resetEnrageSurvival();
