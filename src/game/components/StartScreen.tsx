@@ -12,7 +12,7 @@ const VARIANT_FOR_LEVEL = (level: number): string => {
   return "👨‍💼";
 };
 
-export function StartScreen({ onStart, onSelectLevel, onShowGallery }: { onStart: () => void; onSelectLevel?: (level: number) => void; onShowGallery?: () => void }) {
+export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSettings }: { onStart: () => void; onSelectLevel?: (level: number) => void; onShowGallery?: () => void; onShowSettings?: () => void }) {
   const [showHelp, setShowHelp] = useState(false);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
   const stars = useGameStore((s) => s.stars);
@@ -123,6 +123,12 @@ export function StartScreen({ onStart, onSelectLevel, onShowGallery }: { onStart
             className="text-sky-300/90 hover:text-sky-200 text-sm underline underline-offset-4 font-medium"
           >
             📖 图鉴（成就+道具）
+          </button>
+          <button
+            onClick={() => onShowSettings?.()}
+            className="text-white/60 hover:text-white text-sm underline underline-offset-4 font-medium"
+          >
+            ⚙️ 设置
           </button>
         </div>
 

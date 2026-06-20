@@ -2,7 +2,7 @@
 
 import { useGameStore } from "../store";
 
-export function PauseMenu() {
+export function PauseMenu({ onShowSettings }: { onShowSettings?: () => void }) {
   const paused = useGameStore((s) => s.paused);
   const setPaused = useGameStore((s) => s.setPaused);
   const soundOn = useGameStore((s) => s.soundOn);
@@ -57,6 +57,15 @@ export function PauseMenu() {
           >
             {soundOn ? "🔊 音效：开" : "🔇 音效：关"}
             <span className="text-white/40 text-xs">(M 键)</span>
+          </button>
+          <button
+            onClick={() => {
+              setPaused(false);
+              onShowSettings?.();
+            }}
+            className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 font-semibold transition-colors flex items-center justify-center gap-2"
+          >
+            ⚙️ 设置
           </button>
           <button
             onClick={() => {

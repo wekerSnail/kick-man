@@ -583,99 +583,180 @@ export class Boss {
       }
     }
     if (this.variant === "glasses") {
-      // thick black frame glasses
+      // thick black frame glasses — enlarged for visibility (1.6x)
       const frameMat = this.mat(0x111111);
-      for (const sx of [-0.12, 0.12]) {
-        const lens = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.03), frameMat);
+      const lensW = 0.26;
+      const lensH = 0.2;
+      const lensD = 0.05;
+      for (const sx of [-0.2, 0.2]) {
+        // frame ring (slightly larger box)
+        const lens = new THREE.Mesh(new THREE.BoxGeometry(lensW, lensH, lensD), frameMat);
         lens.position.set(sx, 1.98, 0.22);
         this.accessories.add(lens);
+        // glass (translucent cyan)
+        const glass = new THREE.Mesh(
+          new THREE.BoxGeometry(lensW * 0.75, lensH * 0.75, lensD * 0.4),
+          new THREE.MeshBasicMaterial({
+            color: 0x88eeff,
+            transparent: true,
+            opacity: 0.35,
+            depthWrite: false,
+          })
+        );
+        glass.position.set(sx, 1.98, 0.245);
+        this.accessories.add(glass);
+        // shine glint (small white box) on upper-right of each lens
+        const glint = new THREE.Mesh(
+          new THREE.BoxGeometry(lensW * 0.2, lensH * 0.15, 0.01),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 })
+        );
+        glint.position.set(sx + 0.05, 2.04, 0.255);
+        glint.userData.isGlint = true;
+        this.accessories.add(glint);
       }
       // bridge
-      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.02), frameMat);
-      bridge.position.set(0, 1.98, 0.23);
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.04), frameMat);
+      bridge.position.set(0, 1.98, 0.24);
       this.accessories.add(bridge);
-      // temple arms
-      for (const sx of [-0.21, 0.21]) {
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 0.18), frameMat);
-        arm.position.set(sx, 1.98, 0.12);
+      // temple arms (longer, extend back along head)
+      for (const sx of [-0.32, 0.32]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.28), frameMat);
+        arm.position.set(sx, 1.98, 0.08);
         this.accessories.add(arm);
       }
     } else if (this.variant === "coffee") {
-      // coffee mug in right hand
-      const mugMat = this.mat(0xdddddd);
-      const mug = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.14, 8), mugMat);
+      // coffee mug in right hand — enlarged
+      const mugMat = this.mat(0xeeeeee);
+      const mugRadius = 0.11;
+      const mugHeight = 0.18;
+      const mug = new THREE.Mesh(new THREE.CylinderGeometry(mugRadius, mugRadius * 0.9, mugHeight, 12), mugMat);
       mug.position.set(0.55, 1.1, 0.15);
       this.accessories.add(mug);
-      // handle
-      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.015, 6, 8, Math.PI), mugMat);
-      handle.position.set(0.63, 1.1, 0.15);
+      // handle (torus, larger)
+      const handle = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.022, 8, 12, Math.PI), mugMat);
+      handle.position.set(0.66, 1.1, 0.15);
       handle.rotation.y = Math.PI / 2;
       this.accessories.add(handle);
       // coffee (dark liquid)
       const coffee = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.07, 0.07, 0.02, 8),
+        new THREE.CylinderGeometry(mugRadius * 0.9, mugRadius * 0.9, 0.025, 12),
         this.mat(0x3a1a0a)
       );
-      coffee.position.set(0.55, 1.17, 0.15);
+      coffee.position.set(0.55, 1.19, 0.15);
       this.accessories.add(coffee);
-      // steam particles (small white spheres above)
-      for (let i = 0; i < 3; i++) {
+      // steam particles (slightly larger, animated)
+      for (let i = 0; i < 5; i++) {
         const steam = new THREE.Mesh(
-          new THREE.SphereGeometry(0.04, 6, 4),
-          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })
+          new THREE.SphereGeometry(0.05, 6, 4),
+          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })
         );
-        steam.position.set(0.55 + (i - 1) * 0.04, 1.3 + i * 0.08, 0.15);
+        steam.position.set(0.55 + (i - 2) * 0.05, 1.32 + i * 0.07, 0.15 + ((i % 2) - 0.5) * 0.05);
         steam.userData.isSteam = true;
-        steam.userData.steamBase = 1.3 + i * 0.08;
+        steam.userData.steamBase = 1.32 + i * 0.07;
+        steam.userData.steamIdx = i;
         this.accessories.add(steam);
       }
+      // a small " aroma" indicator (three short vertical lines, like rising smell)
+      const aromaMat = new THREE.MeshBasicMaterial({ color: 0xffcc88, transparent: true, opacity: 0.4 });
+      for (let i = 0; i < 3; i++) {
+        const wisp = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.08, 0.02), aromaMat);
+        wisp.position.set(0.55 + (i - 1) * 0.07, 1.55, 0.15);
+        wisp.userData.isAroma = true;
+        this.accessories.add(wisp);
+      }
     } else if (this.variant === "headphones") {
-      // over-ear headphones
+      // over-ear headphones — enlarged cups, brighter accent
       const hpMat = this.mat(0x222222);
-      // headband
-      const band = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 6, 12, Math.PI), hpMat);
-      band.position.set(0, 2.15, 0);
+      const accentMat = this.mat(0xff66cc, { emissive: 0x661133, emissiveIntensity: 0.5 });
+      // headband (larger radius, thicker)
+      const band = new THREE.Mesh(new THREE.TorusGeometry(0.28, 0.04, 8, 16, Math.PI), hpMat);
+      band.position.set(0, 2.18, 0);
       band.rotation.x = Math.PI / 2;
       this.accessories.add(band);
-      // ear cups
-      for (const sx of [-0.22, 0.22]) {
-        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.08, 12), hpMat);
+      // band cushion (top)
+      const cushion = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.04, 0.18),
+        this.mat(0x111111)
+      );
+      cushion.position.set(0, 2.4, 0);
+      this.accessories.add(cushion);
+      // ear cups (larger)
+      for (const sx of [-0.28, 0.28]) {
+        const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.1, 16), hpMat);
         cup.position.set(sx, 1.95, 0);
         cup.rotation.z = Math.PI / 2;
         this.accessories.add(cup);
-        // cushion
+        // outer accent ring (visible "music" indicator)
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.1, 0.012, 8, 16),
+          accentMat
+        );
+        ring.position.set(sx + (sx > 0 ? 0.051 : -0.051), 1.95, 0);
+        ring.rotation.y = Math.PI / 2;
+        ring.userData.isHpRing = true;
+        this.accessories.add(ring);
+        // cushion (inner, against ear)
         const cush = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.07, 0.07, 0.04, 12),
+          new THREE.CylinderGeometry(0.1, 0.1, 0.04, 16),
           this.mat(0x111111)
         );
         cush.position.set(sx + (sx > 0 ? -0.04 : 0.04), 1.95, 0);
         cush.rotation.z = Math.PI / 2;
         this.accessories.add(cush);
       }
+      // floating music note sprite (above head, animated)
+      const note = new THREE.Mesh(
+        new THREE.SphereGeometry(0.06, 8, 6),
+        new THREE.MeshBasicMaterial({ color: 0xffcc44, transparent: true, opacity: 0.8 })
+      );
+      note.position.set(0.2, 2.55, 0.15);
+      note.userData.isMusicNote = true;
+      this.accessories.add(note);
     } else if (this.variant === "rage") {
-      // rage: red angry crown + glowing aura ring on ground
-      const crownMat = this.mat(0xdc2626, { emissive: 0x991111, emissiveIntensity: 0.6 });
-      const crown = new THREE.Mesh(
-        new THREE.ConeGeometry(0.22, 0.25, 5),
+      // rage: red angry crown + glowing aura ring on ground — all enlarged
+      const crownMat = this.mat(0xdc2626, { emissive: 0xaa1111, emissiveIntensity: 0.8 });
+      // crown: 3 cones for spiked crown look
+      for (let i = 0; i < 5; i++) {
+        const spike = new THREE.Mesh(
+          new THREE.ConeGeometry(0.1, 0.3, 4),
+          crownMat
+        );
+        const angle = (i / 5) * Math.PI - Math.PI / 2;
+        spike.position.set(Math.cos(angle) * 0.18, 2.45, Math.sin(angle) * 0.18);
+        this.accessories.add(spike);
+      }
+      // crown band (torus base)
+      const band = new THREE.Mesh(
+        new THREE.TorusGeometry(0.22, 0.05, 6, 16),
         crownMat
       );
-      crown.position.set(0, 2.35, 0);
-      this.accessories.add(crown);
-      // anger mark (red sphere above head)
+      band.position.set(0, 2.3, 0);
+      band.rotation.x = Math.PI / 2;
+      this.accessories.add(band);
+      // anger mark (red sphere above head, larger) with pulsing
       const anger = new THREE.Mesh(
-        new THREE.SphereGeometry(0.08, 8, 6),
+        new THREE.SphereGeometry(0.12, 12, 8),
         new THREE.MeshBasicMaterial({ color: 0xff3333 })
       );
-      anger.position.set(0.15, 2.5, 0.2);
+      anger.position.set(0.18, 2.65, 0.2);
       anger.userData.isAnger = true;
       this.accessories.add(anger);
-      // ground aura ring
+      // cross-vein marks (small red boxes for anime-style anger veins)
+      const veinMat = new THREE.MeshBasicMaterial({ color: 0xff5555 });
+      for (let i = 0; i < 4; i++) {
+        const vein = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 0.04), veinMat);
+        vein.position.set(-0.18 + i * 0.12, 2.65, 0.2);
+        vein.rotation.z = (i % 2 === 0 ? 1 : -1) * 0.4;
+        vein.userData.isVein = true;
+        this.accessories.add(vein);
+      }
+      // ground aura ring (larger, more dramatic)
       const aura = new THREE.Mesh(
-        new THREE.RingGeometry(0.6, 0.9, 24),
+        new THREE.RingGeometry(0.8, 1.2, 32),
         new THREE.MeshBasicMaterial({
           color: 0xff3333,
           transparent: true,
-          opacity: 0.4,
+          opacity: 0.5,
           side: THREE.DoubleSide,
           depthWrite: false,
         })
@@ -684,6 +765,21 @@ export class Boss {
       aura.position.y = 0.04;
       aura.userData.isAura = true;
       this.accessories.add(aura);
+      // outer aura ring (subtle, larger)
+      const aura2 = new THREE.Mesh(
+        new THREE.RingGeometry(1.3, 1.6, 32),
+        new THREE.MeshBasicMaterial({
+          color: 0xff6633,
+          transparent: true,
+          opacity: 0.25,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        })
+      );
+      aura2.rotation.x = -Math.PI / 2;
+      aura2.position.y = 0.045;
+      aura2.userData.isAuraOuter = true;
+      this.accessories.add(aura2);
     }
   }
 
@@ -1009,6 +1105,43 @@ export class Boss {
         mat.opacity = this.enraged ? 0.7 : 0.3;
         const s = 1 + Math.sin(this.swayPhase * 3) * 0.15;
         c.scale.set(s, s, s);
+      }
+      if (c instanceof THREE.Mesh && c.userData.isAuraOuter) {
+        const mat = c.material as THREE.MeshBasicMaterial;
+        mat.opacity = this.enraged ? 0.45 : 0.18;
+        const s = 1.05 + Math.sin(this.swayPhase * 2 + 1) * 0.2;
+        c.scale.set(s, s, s);
+      }
+      if (c instanceof THREE.Mesh && c.userData.isVein) {
+        // throb veins
+        const s = 1 + Math.sin(this.swayPhase * 8 + c.position.x * 5) * 0.2;
+        c.scale.set(1, s, 1);
+      }
+      if (c instanceof THREE.Mesh && c.userData.isGlint) {
+        // twinkle glasses shine
+        const mat = c.material as THREE.MeshBasicMaterial;
+        mat.opacity = 0.4 + Math.abs(Math.sin(this.swayPhase * 3 + c.position.x * 10)) * 0.5;
+      }
+      if (c instanceof THREE.Mesh && c.userData.isMusicNote) {
+        // bobbing music note
+        c.position.y = 2.55 + Math.sin(this.swayPhase * 3) * 0.08;
+        c.position.x = 0.2 + Math.cos(this.swayPhase * 3) * 0.04;
+        const mat = c.material as THREE.MeshBasicMaterial;
+        mat.opacity = 0.6 + Math.sin(this.swayPhase * 4) * 0.3;
+      }
+      if (c instanceof THREE.Mesh && c.userData.isHpRing) {
+        // pulse the headphone accent ring
+        const mat = c.material as THREE.MeshStandardMaterial;
+        if (mat.emissiveIntensity !== undefined) {
+          mat.emissiveIntensity = 0.4 + Math.abs(Math.sin(this.swayPhase * 4)) * 0.4;
+        }
+      }
+      if (c instanceof THREE.Mesh && c.userData.isAroma) {
+        // rise and fade aroma wisps
+        const mat = c.material as THREE.MeshBasicMaterial;
+        const phase = (this.swayPhase * 1.5 + c.position.x * 8) % (Math.PI * 2);
+        c.position.y = 1.55 + (Math.sin(phase) + 1) * 0.5 * 0.15;
+        mat.opacity = 0.4 * (1 - (Math.sin(phase) + 1) / 2);
       }
     });
   }

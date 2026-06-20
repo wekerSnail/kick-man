@@ -31,6 +31,8 @@ export interface MinimapData {
   bossMaxHP: number;
   bossEnraged: boolean;
   suspicion: number; // 0..1 boss suspicion meter
+  // boss looking direction (radians) for detection arrow; may differ from bfacing when looking back
+  bossLookDir?: number;
   // patrol cone (when patrolling)
   patrolCone?: { range: number; angleDeg: number };
   // half-circle awareness range (0 = none)
@@ -42,6 +44,28 @@ export interface MinimapData {
   // level timer seconds
   levelTime: number;
 }
+
+// Boss variant tutorial info shown on first encounter
+export interface VariantTutorial {
+  variant: "glasses" | "coffee" | "headphones" | "rage";
+}
+
+// Persistent user settings (saved to localStorage)
+export interface UserSettings {
+  volume: number; // 0..1 master volume
+  visionCone: boolean; // show boss vision cone on ground
+  minimap: boolean; // show minimap
+  detectionArrow: boolean; // show directional arrow to boss when alert
+  screenshake: boolean; // enable screen shake on hit
+}
+
+const DEFAULT_SETTINGS: UserSettings = {
+  volume: 0.35,
+  visionCone: true,
+  minimap: true,
+  detectionArrow: true,
+  screenshake: true,
+};
 
 interface GameState {
   // screen
@@ -163,6 +187,20 @@ interface GameState {
   maxLevelReached: number; // highest level reached
   addKicksTotal: (n: number) => void;
   setMaxLevelReached: (n: number) => void;
+
+  // variant tutorial popup (transient)
+  variantTutorial: VariantTutorial | null;
+  showVariantTutorial: (v: VariantTutorial) => void;
+  dismissVariantTutorial: () => void;
+  seenVariants: Record<string, boolean>; // persisted: which variants player has seen tutorial for
+  markVariantSeen: (v: string) => void;
+
+  // user settings (persisted)
+  settings: UserSettings;
+  setSettings: (s: Partial<UserSettings>) => void;
+
+  // reset all progress (clears localStorage + memory)
+  resetAllProgress: () => void;
 }
 
 let toastId = 1;
@@ -180,6 +218,8 @@ interface PersistedProgress {
   bestTimes: Record<number, number>;
   totalKicks: number;
   maxLevelReached: number;
+  seenVariants: Record<string, boolean>;
+  settings: UserSettings;
 }
 
 function loadProgress(): Partial<PersistedProgress> {
@@ -442,6 +482,47 @@ export const useGameStore = create<GameState>((set, get) => ({
       persistFromStore({ ...st, ...next });
       return next;
     }),
+
+  // variant tutorial popup
+  variantTutorial: null,
+  showVariantTutorial: (v) => set({ variantTutorial: v }),
+  dismissVariantTutorial: () => set({ variantTutorial: null }),
+  seenVariants: getPersisted().seenVariants || {},
+  markVariantSeen: (v) =>
+    set((st) => {
+      if (st.seenVariants[v]) return {};
+      const next = { seenVariants: { ...st.seenVariants, [v]: true } };
+      persistFromStore({ ...st, ...next });
+      return next;
+    }),
+
+  // user settings (persisted)
+  settings: { ...DEFAULT_SETTINGS, ...(getPersisted().settings || {}) },
+  setSettings: (s) =>
+    set((st) => {
+      const next = { settings: { ...st.settings, ...s } };
+      persistFromStore({ ...st, ...next });
+      return next;
+    }),
+
+  // reset all progress (clear localStorage + memory)
+  resetAllProgress: () => {
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    _persistedCache = {};
+    set({
+      stars: {},
+      achievements: {},
+      bestTimes: {},
+      totalKicks: 0,
+      maxLevelReached: 1,
+      seenVariants: {},
+      settings: { ...DEFAULT_SETTINGS },
+    });
+  },
 }));
 
 // Achievement icons
@@ -478,5 +559,7 @@ function persistFromStore(state: GameState) {
     bestTimes: state.bestTimes,
     totalKicks: state.totalKicks,
     maxLevelReached: state.maxLevelReached,
+    seenVariants: state.seenVariants,
+    settings: state.settings,
   });
 }

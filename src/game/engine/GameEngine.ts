@@ -243,7 +243,9 @@ export class GameEngine {
       onBossHit: () => {
         // boss red flash + screen shake + hit particles
         this.hitFlashTimer = 0.35;
-        this.screenShake = Math.max(this.screenShake, 0.4);
+        if (this.store.settings.screenshake) {
+          this.screenShake = Math.max(this.screenShake, 0.4);
+        }
         this.spawnHitParticles();
       },
     });
@@ -961,6 +963,21 @@ export class GameEngine {
     if (b && b.text) {
       this.store.pushEventBanner(b.text, b.icon, b.color);
     }
+    // variant-specific one-shot sounds on state changes
+    const variant = this.boss.variant;
+    if (variant === "glasses" && (state === "LookingBack" || state === "Attacked")) {
+      // glasses boss "flashes" reflection when looking around
+      audio.glassesGlare();
+    } else if (variant === "coffee" && state === "Meeting") {
+      // boss sips coffee during meeting
+      audio.coffeeSip();
+    } else if (variant === "headphones" && state === "Patrol") {
+      // boss grooves to the beat when patrolling
+      audio.headphoneBeat();
+    } else if (variant === "rage" && state === "Attacked") {
+      // rage boss roars when attacked
+      audio.rageRoar();
+    }
   }
 
   // ===== detection callback =====
@@ -985,6 +1002,7 @@ export class GameEngine {
   private triggerGameOver() {
     if (this.screen !== "playing") return;
     audio.gameOver();
+    audio.stopVariantAmbient();
     this.screen = "game-over";
     setTimeout(() => {
       this.store.setScreen("game-over");
@@ -995,6 +1013,7 @@ export class GameEngine {
   private triggerLevelComplete() {
     if (this.screen !== "playing") return;
     audio.levelComplete();
+    audio.stopVariantAmbient();
     this.screen = "level-transition";
     this.paused = true;
     // record best time for this level
@@ -1059,6 +1078,7 @@ export class GameEngine {
   }
   private usedWeaponThisLevel = false;
   private usedItemsThisLevel = false;
+  private wasEnragedLastFrame = false;
 
   // ===== screen change from store (buttons) =====
   private onScreenChange(screen: string) {
@@ -1114,6 +1134,7 @@ export class GameEngine {
     this.hitFlashTimer = 0;
     this.usedWeaponThisLevel = false;
     this.usedItemsThisLevel = false;
+    this.wasEnragedLastFrame = false;
     // reset run stats
     this.store.resetRunStats();
     this.hitFlashLight.intensity = 0;
@@ -1151,7 +1172,8 @@ export class GameEngine {
     this.smokeClouds = [];
     // boss reset with difficulty scaling + variant + HP (higher levels = faster boss + different variants)
     this.boss.setDifficulty(level);
-    this.boss.setVariant(this.variantForLevel(level));
+    const variant = this.variantForLevel(level);
+    this.boss.setVariant(variant);
     this.boss.bossMaxHP = this.bossMaxHpForLevel(level);
     this.boss.bossHP = this.boss.bossMaxHP;
     this.boss.reset(level);
@@ -1170,6 +1192,23 @@ export class GameEngine {
     this.screen = "playing";
     this.paused = false;
     audio.startBgMusic();
+    // apply user settings
+    audio.setVolume(this.store.settings.volume);
+    audio.setEnabled(this.store.soundOn);
+    // start variant-specific ambient sound + first-time tutorial
+    if (variant !== "normal") {
+      audio.setVariantAmbient(variant);
+      if (!this.store.seenVariants[variant]) {
+        // defer to next tick so React can mount the playing screen first
+        setTimeout(() => {
+          this.store.showVariantTutorial({ variant } as { variant: "glasses" | "coffee" | "headphones" | "rage" });
+          audio.uiPopup();
+        }, 600);
+        this.store.markVariantSeen(variant);
+      }
+    } else {
+      audio.setVariantAmbient("normal");
+    }
   }
 
   restartGame() {
@@ -1770,6 +1809,7 @@ export class GameEngine {
       bx: this.boss.x,
       bz: this.boss.z,
       bfacing: this.boss.facingY,
+      bossLookDir: this.boss.targetFacingY,
       bossState: bs,
       bossVariant: this.boss.variant,
       bossHP: this.boss.bossHP,
@@ -1789,6 +1829,13 @@ export class GameEngine {
       this.boss.state === "Attacked" ||
       this.boss.state === "Patrol";
     audio.setTense(isTense);
+    // rage enrage-state transition: play roar when entering enrage
+    const isEnragedNow = this.boss.isEnraged();
+    if (isEnragedNow && !this.wasEnragedLastFrame) {
+      audio.rageRoar();
+      this.store.pushEventBanner("老板暴怒了！立即躲藏！", "🔥", "bg-red-800/95 border-red-300 animate-pulse");
+    }
+    this.wasEnragedLastFrame = isEnragedNow;
   }
 
   // ===== cleanup =====
@@ -1804,6 +1851,7 @@ export class GameEngine {
     this.renderer.domElement.removeEventListener("contextmenu", this.boundContextMenu);
     if (this.unsubStore) this.unsubStore();
     audio.stopBgMusic();
+    audio.stopVariantAmbient();
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement);

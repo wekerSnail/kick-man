@@ -5,8 +5,13 @@ export class AudioManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   enabled = true;
+  private volume = 0.35;
   private bgGain: GainNode | null = null;
   private bgNodes: { osc: OscillatorNode; lfo: OscillatorNode } | null = null;
+  // variant-specific ambient loop nodes (coffee/headphones)
+  private variantGain: GainNode | null = null;
+  private variantNodes: { osc: OscillatorNode; lfo: OscillatorNode } | null = null;
+  private currentVariant: "normal" | "glasses" | "coffee" | "headphones" | "rage" = "normal";
 
   private ensure() {
     if (typeof window === "undefined") return null;
@@ -17,7 +22,7 @@ export class AudioManager {
           .webkitAudioContext;
       this.ctx = new Ctx();
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.value = 0.35;
+      this.masterGain.gain.value = this.volume;
       this.masterGain.connect(this.ctx.destination);
     }
     if (this.ctx.state === "suspended") void this.ctx.resume();
@@ -26,6 +31,17 @@ export class AudioManager {
 
   resume() {
     this.ensure();
+  }
+
+  setVolume(v: number) {
+    this.volume = Math.max(0, Math.min(1, v));
+    if (this.masterGain) {
+      this.masterGain.gain.value = this.enabled ? this.volume : 0;
+    }
+  }
+
+  getVolume() {
+    return this.volume;
   }
 
   private blip(
@@ -164,6 +180,143 @@ export class AudioManager {
     setTimeout(() => this.blip(660, 0.08, "sine", 0.3), 100);
   }
 
+  // ===== Variant-specific one-shot SFX =====
+  // glasses: bright shimmer when boss "flashes" reflection
+  glassesGlare() {
+    this.blip(1800, 0.18, "sine", 0.18, 2600);
+    setTimeout(() => this.blip(2400, 0.1, "sine", 0.12), 90);
+  }
+  // coffee: short liquid slurp
+  coffeeSip() {
+    this.noise(0.18, 0.18, 500);
+    this.blip(180, 0.18, "sine", 0.2, 90);
+  }
+  // headphones: muffled bass thump
+  headphoneBeat() {
+    this.blip(90, 0.12, "sine", 0.32, 50);
+    this.noise(0.05, 0.1, 200);
+  }
+  // rage: aggressive roar (low growl + noise)
+  rageRoar() {
+    this.blip(110, 0.5, "sawtooth", 0.45, 70);
+    this.noise(0.4, 0.3, 350);
+    setTimeout(() => this.blip(85, 0.3, "sawtooth", 0.35, 55), 200);
+  }
+  // tutorial / banner popup
+  uiPopup() {
+    this.blip(660, 0.08, "sine", 0.25);
+    setTimeout(() => this.blip(990, 0.12, "sine", 0.25), 60);
+  }
+  // achievement-style chime for tutorial close
+  uiDismiss() {
+    this.blip(440, 0.06, "sine", 0.2);
+    setTimeout(() => this.blip(330, 0.08, "sine", 0.2), 50);
+  }
+
+  // ===== Variant ambient loop (continuous background characterization) =====
+  // Call setVariantAmbient when entering a level; pass "normal" to stop.
+  setVariantAmbient(variant: "normal" | "glasses" | "coffee" | "headphones" | "rage") {
+    const ctx = this.ensure();
+    if (!ctx || !this.masterGain) return;
+    if (this.currentVariant === variant && this.variantNodes) return;
+    // stop previous
+    this.stopVariantAmbient();
+    this.currentVariant = variant;
+    if (variant === "normal") return;
+
+    const vg = ctx.createGain();
+    vg.gain.value = 0;
+    vg.connect(this.masterGain);
+    this.variantGain = vg;
+
+    if (variant === "coffee") {
+      // gentle bubbling: low-freq oscillator with slow LFO
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 80;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.7;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 15;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      osc.connect(vg);
+      osc.start();
+      lfo.start();
+      this.variantNodes = { osc, lfo };
+      vg.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 0.6);
+    } else if (variant === "headphones") {
+      // muffled rhythmic beat: ~2Hz pulse on low sine
+      const osc = ctx.createOscillator();
+      osc.type = "sine";
+      osc.frequency.value = 65;
+      const lfo = ctx.createOscillator();
+      lfo.type = "square";
+      lfo.frequency.value = 2; // 120 BPM
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 0.05;
+      lfo.connect(lfoGain);
+      lfoGain.connect(vg.gain);
+      osc.connect(vg);
+      osc.start();
+      lfo.start();
+      this.variantNodes = { osc, lfo };
+      vg.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.6);
+    } else if (variant === "rage") {
+      // ominous low rumble
+      const osc = ctx.createOscillator();
+      osc.type = "sawtooth";
+      osc.frequency.value = 55;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.4;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 8;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      osc.connect(vg);
+      osc.start();
+      lfo.start();
+      this.variantNodes = { osc, lfo };
+      vg.gain.linearRampToValueAtTime(0.06, ctx.currentTime + 0.6);
+    } else if (variant === "glasses") {
+      // very subtle high air (no continuous tone, but a faint breath)
+      const osc = ctx.createOscillator();
+      osc.type = "triangle";
+      osc.frequency.value = 220;
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 0.15;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 4;
+      lfo.connect(lfoGain);
+      lfoGain.connect(osc.frequency);
+      osc.connect(vg);
+      osc.start();
+      lfo.start();
+      this.variantNodes = { osc, lfo };
+      vg.gain.linearRampToValueAtTime(0.015, ctx.currentTime + 0.6);
+    }
+  }
+
+  stopVariantAmbient() {
+    if (this.variantNodes) {
+      try {
+        this.variantNodes.osc.stop();
+        this.variantNodes.lfo.stop();
+      } catch {
+        /* noop */
+      }
+      this.variantNodes = null;
+    }
+    if (this.variantGain) {
+      try {
+        this.variantGain.disconnect();
+      } catch {
+        /* noop */
+      }
+      this.variantGain = null;
+    }
+  }
+
   startBgMusic() {
     const ctx = this.ensure();
     if (!ctx || !this.masterGain || this.bgNodes) return;
@@ -214,7 +367,7 @@ export class AudioManager {
 
   setEnabled(v: boolean) {
     this.enabled = v;
-    if (this.masterGain) this.masterGain.gain.value = v ? 0.35 : 0;
+    if (this.masterGain) this.masterGain.gain.value = v ? this.volume : 0;
   }
 }
 

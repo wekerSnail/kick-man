@@ -17,13 +17,18 @@ import { AchievementToast } from "./AchievementToast";
 import { ComboCounter } from "./ComboCounter";
 import { Gallery } from "./Gallery";
 import { EventBanner } from "./EventBanner";
+import { TutorialHint } from "./TutorialHint";
+import { DetectionArrow } from "./DetectionArrow";
+import { SettingsMenu } from "./SettingsMenu";
 
 export default function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
   const [ready, setReady] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const screen = useGameStore((s) => s.screen);
+  const settings = useGameStore((s) => s.settings);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -49,9 +54,10 @@ export default function Game() {
       {ready && screen === "playing" && (
         <>
           <HUD />
-          <Minimap />
+          {settings.minimap && <Minimap />}
           <TouchControls />
           <ComboCounter />
+          <DetectionArrow />
         </>
       )}
       {ready && screen === "start" && (
@@ -63,6 +69,7 @@ export default function Game() {
             engineRef.current?.startAtLevel(level);
           }}
           onShowGallery={() => setShowGallery(true)}
+          onShowSettings={() => setShowSettings(true)}
         />
       )}
       {ready && screen === "level-transition" && (
@@ -74,20 +81,28 @@ export default function Game() {
       {ready && screen === "game-over" && (
         <GameOverScreen
           onRestart={() => engineRef.current?.restartGame()}
+          onBackToMenu={() => useGameStore.getState().setScreen("start")}
         />
       )}
       {ready && screen === "victory" && (
         <VictoryScreen
           onRestart={() => engineRef.current?.restartGame()}
+          onBackToMenu={() => useGameStore.getState().setScreen("start")}
         />
       )}
       {ready && screen === "fps" && <FPSHUD />}
 
       {/* Pause menu overlay (works on top of playing screen) */}
-      {ready && <PauseMenu />}
+      {ready && <PauseMenu onShowSettings={() => setShowSettings(true)} />}
+
+      {/* Tutorial hint popup (boss variant first encounter) */}
+      {ready && <TutorialHint />}
 
       {/* Gallery (achievements + items) overlay */}
       {ready && showGallery && <Gallery onClose={() => setShowGallery(false)} />}
+
+      {/* Settings menu overlay */}
+      {ready && showSettings && <SettingsMenu onClose={() => setShowSettings(false)} />}
 
       {/* Achievement unlock toasts (always available) */}
       {ready && <AchievementToast />}
