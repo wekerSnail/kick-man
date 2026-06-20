@@ -2,26 +2,17 @@
 
 import { useGameStore } from "../store";
 import { WEAPONS, CONSUMABLES } from "../constants";
-
-// All achievements (id, name, icon, desc)
-const ALL_ACHIEVEMENTS: { id: string; name: string; icon: string; desc: string }[] = [
-  { id: "first_blood", name: "初次踹击", icon: "🩸", desc: "第一次成功踹中老板" },
-  { id: "perfect", name: "完美通关", icon: "🛡️", desc: "零伤害零发现通关任意关卡" },
-  { id: "stealth", name: "潜行达人", icon: "🥷", desc: "零发现通关任意关卡" },
-  { id: "speedrun", name: "速通达人", icon: "⚡", desc: "第1关 30 秒内通关" },
-  { id: "combo5", name: "连击5次", icon: "🔥", desc: "连续命中 5 次" },
-  { id: "combo10", name: "连击大师", icon: "💥", desc: "连续命中 10 次" },
-  { id: "weapon_master", name: "武器行者", icon: "🏏", desc: "使用武器命中老板" },
-  { id: "pacifist_kick", name: "徒手行者", icon: "🦵", desc: "全程只用脚踹通关" },
-  { id: "no_items", name: "极简主义者", icon: "🎒", desc: "全程不用道具通关" },
-  { id: "surviver", name: "职场幸存者", icon: "💼", desc: "到达第 5 关" },
-  { id: "kicker_100", name: "踹击狂人", icon: "💯", desc: "单关 50+ 踹击" },
-  { id: "level7", name: "通关大吉", icon: "👑", desc: "完成第 7 关" },
-];
+import {
+  ALL_ACHIEVEMENTS,
+  ACHIEVEMENT_COUNT,
+  BOSS_VARIANTS,
+} from "../achievements";
 
 export function Gallery({ onClose }: { onClose: () => void }) {
   const achievements = useGameStore((s) => s.achievements);
+  const defeatedVariants = useGameStore((s) => s.defeatedVariants);
   const unlockedCount = Object.values(achievements).filter(Boolean).length;
+  const defeatedVariantsCount = Object.values(defeatedVariants).filter(Boolean).length;
 
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/85 backdrop-blur-md text-white animate-[fadein_0.2s_ease-out] overflow-y-auto">
@@ -32,7 +23,7 @@ export function Gallery({ onClose }: { onClose: () => void }) {
               📖 图鉴
             </h2>
             <p className="text-white/50 text-xs mt-0.5">
-              成就 {unlockedCount}/{ALL_ACHIEVEMENTS.length} · 道具 {Object.keys(WEAPONS).length + Object.keys(CONSUMABLES).length} 种
+              成就 {unlockedCount}/{ACHIEVEMENT_COUNT} · 变体 {defeatedVariantsCount}/{BOSS_VARIANTS.length} · 道具 {Object.keys(WEAPONS).length + Object.keys(CONSUMABLES).length} 种
             </p>
           </div>
           <button
@@ -44,10 +35,61 @@ export function Gallery({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        {/* Boss Variants section (NEW) */}
+        <div className="mb-6">
+          <h3 className="text-amber-300 font-bold text-sm mb-2 flex items-center gap-2">
+            👔 Boss 变体 ({defeatedVariantsCount}/{BOSS_VARIANTS.length})
+            <span className="text-[10px] text-white/40 font-normal">· 已击败</span>
+          </h3>
+          <div className="space-y-2">
+            {BOSS_VARIANTS.map((v) => {
+              const defeated = !!defeatedVariants[v.id];
+              return (
+                <div
+                  key={v.id}
+                  className={`bg-gradient-to-br ${v.bgGradient} rounded-xl p-3 border ${v.borderColor} transition-all ${
+                    defeated ? "" : "opacity-60"
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="text-3xl leading-none mt-0.5">{v.icon}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <span className={`text-sm font-bold ${v.color}`}>{v.name}</span>
+                        <span className="text-[9px] uppercase tracking-wider bg-white/10 px-1.5 py-0.5 rounded-full text-white/60">
+                          {v.levelRange}
+                        </span>
+                        {defeated && (
+                          <span className="text-[9px] bg-emerald-500/30 border border-emerald-400/40 px-1.5 py-0.5 rounded-full text-emerald-200 font-bold">
+                            ✓ 已击败
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-white/70 leading-snug mb-1.5">
+                        {v.description}
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5 text-[10px]">
+                        <div className="bg-black/30 rounded px-1.5 py-1">
+                          <div className="text-amber-300/70 font-semibold mb-0.5">机制</div>
+                          <div className="text-white/70 leading-tight">{v.mechanics}</div>
+                        </div>
+                        <div className="bg-black/30 rounded px-1.5 py-1">
+                          <div className="text-emerald-300/70 font-semibold mb-0.5">应对</div>
+                          <div className="text-white/70 leading-tight">{v.weakness}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Achievements section */}
         <div className="mb-6">
           <h3 className="text-amber-300 font-bold text-sm mb-2 flex items-center gap-2">
-            🏆 成就 ({unlockedCount}/{ALL_ACHIEVEMENTS.length})
+            🏆 成就 ({unlockedCount}/{ACHIEVEMENT_COUNT})
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {ALL_ACHIEVEMENTS.map((a) => {
@@ -58,7 +100,7 @@ export function Gallery({ onClose }: { onClose: () => void }) {
                   className={`rounded-xl p-2.5 border transition-all ${
                     unlocked
                       ? "bg-gradient-to-br from-amber-500/20 to-orange-600/10 border-amber-400/40"
-                      : "bg-black/40 border-white/5 opacity-50"
+                      : "bg-black/40 border-white/5 opacity-60"
                   }`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
@@ -70,7 +112,7 @@ export function Gallery({ onClose }: { onClose: () => void }) {
                     </span>
                   </div>
                   <div className="text-[10px] text-white/50 leading-tight">
-                    {unlocked ? a.desc : "？？？（未解锁）"}
+                    {unlocked ? a.desc : a.hint || "？？？（未解锁）"}
                   </div>
                 </div>
               );

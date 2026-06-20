@@ -962,6 +962,8 @@ export class GameEngine {
     const b = banners[state];
     if (b && b.text) {
       this.store.pushEventBanner(b.text, b.icon, b.color);
+      // also log to level event timeline
+      this.store.pushLevelEvent(state, b.text, b.icon);
     }
     // variant-specific one-shot sounds on state changes
     const variant = this.boss.variant;
@@ -994,6 +996,7 @@ export class GameEngine {
     this.store.setHp(newHp);
     this.store.setDeathDialogue(line);
     this.store.pushToast(`被发现！-${amount} 血`, "danger");
+    this.store.pushLevelEvent("detected", `被发现！扣 ${amount} 血`, "👁️");
     if (newHp <= 0) {
       this.triggerGameOver();
     }
@@ -1075,6 +1078,15 @@ export class GameEngine {
     if (s.level >= 5) s.unlockAchievement("surviver", "职场幸存者：到达第5关");
     // kicker_100 — total kicks across run reaches 100 (approximate via comboMax + level)
     if (s.kicks >= 50) s.unlockAchievement("kicker_100", "踹击狂人：单关50+踹击");
+    // variant_master — defeated all 5 variants
+    const variant = this.variantForLevel(s.level);
+    s.markVariantDefeated(variant);
+    // re-read state after mutation (this.store is a getter that calls getState())
+    const freshState = this.store;
+    const defeatedCount = Object.values(freshState.defeatedVariants).filter(Boolean).length;
+    if (defeatedCount >= 5) s.unlockAchievement("variant_master", "变体克星：击败所有5种Boss变体");
+    // enrage_survivor — survived enrage 3+ times this level (without being detected during enrage)
+    if (freshState.enrageSurvivalsThisLevel >= 3) s.unlockAchievement("enrage_survivor", "暴怒幸存者：在暴怒状态下存活3次");
   }
   private usedWeaponThisLevel = false;
   private usedItemsThisLevel = false;
@@ -1137,6 +1149,7 @@ export class GameEngine {
     this.wasEnragedLastFrame = false;
     // reset run stats
     this.store.resetRunStats();
+    this.store.resetEnrageSurvival();
     this.hitFlashLight.intensity = 0;
     this.tShield = 0;
     this.showShieldMesh(false);
@@ -1192,8 +1205,11 @@ export class GameEngine {
     this.screen = "playing";
     this.paused = false;
     audio.startBgMusic();
-    // apply user settings
+    // apply user settings (master + channel volumes)
     audio.setVolume(this.store.settings.volume);
+    audio.setChannelVolume("sfx", this.store.settings.sfxVolume);
+    audio.setChannelVolume("music", this.store.settings.musicVolume);
+    audio.setChannelVolume("ambient", this.store.settings.ambientVolume);
     audio.setEnabled(this.store.soundOn);
     // start variant-specific ambient sound + first-time tutorial
     if (variant !== "normal") {
@@ -1208,6 +1224,14 @@ export class GameEngine {
       }
     } else {
       audio.setVariantAmbient("normal");
+    }
+    // Level 1 first-time tutorial: show basic operations hint on first ever play
+    if (level === 1 && !this.store.seenLevel1Tutorial) {
+      setTimeout(() => {
+        this.store.triggerLevel1Tutorial();
+        audio.uiPopup();
+      }, 800);
+      this.store.markLevel1TutorialSeen();
     }
   }
 
@@ -1834,6 +1858,11 @@ export class GameEngine {
     if (isEnragedNow && !this.wasEnragedLastFrame) {
       audio.rageRoar();
       this.store.pushEventBanner("老板暴怒了！立即躲藏！", "🔥", "bg-red-800/95 border-red-300 animate-pulse");
+    }
+    // enrage exit: count as a survival if player wasn't detected during the enrage
+    if (!isEnragedNow && this.wasEnragedLastFrame) {
+      // survived an enrage cycle without taking damage this frame
+      this.store.incEnrageSurvival();
     }
     this.wasEnragedLastFrame = isEnragedNow;
   }

@@ -25,6 +25,19 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleChannelVolume = (channel: "sfx" | "music" | "ambient", v: number) => {
+    if (channel === "sfx") {
+      setSettings({ sfxVolume: v });
+      audio.setChannelVolume("sfx", v);
+    } else if (channel === "music") {
+      setSettings({ musicVolume: v });
+      audio.setChannelVolume("music", v);
+    } else {
+      setSettings({ ambientVolume: v });
+      audio.setChannelVolume("ambient", v);
+    }
+  };
+
   const handleToggle = (key: keyof UserSettings, value: boolean) => {
     setSettings({ [key]: value } as Partial<UserSettings>);
   };
@@ -77,6 +90,36 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
               <span>静音</span>
               <span>默认 35%</span>
               <span>最大</span>
+            </div>
+          </section>
+
+          {/* Channel volumes (SFX / Music / Ambient) */}
+          <section>
+            <div className="text-[10px] uppercase tracking-wider text-white/50 mb-2">
+              音量细分
+            </div>
+            <div className="space-y-2.5 bg-white/5 rounded-xl p-3 border border-white/5">
+              <ChannelSlider
+                icon="💥"
+                label="音效"
+                value={settings.sfxVolume}
+                onChange={(v) => handleChannelVolume("sfx", v)}
+                color="accent-rose-400"
+              />
+              <ChannelSlider
+                icon="🎵"
+                label="音乐"
+                value={settings.musicVolume}
+                onChange={(v) => handleChannelVolume("music", v)}
+                color="accent-emerald-400"
+              />
+              <ChannelSlider
+                icon="🌫️"
+                label="环境音"
+                value={settings.ambientVolume}
+                onChange={(v) => handleChannelVolume("ambient", v)}
+                color="accent-sky-400"
+              />
             </div>
           </section>
 
@@ -222,6 +265,43 @@ function ToggleRow({
           }`}
         />
       </button>
+    </div>
+  );
+}
+
+function ChannelSlider({
+  icon,
+  label,
+  value,
+  onChange,
+  color,
+}: {
+  icon: string;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  color: string;
+}) {
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1">
+        <label className="text-xs font-medium flex items-center gap-1.5">
+          <span className="text-sm">{icon}</span>
+          <span>{label}</span>
+        </label>
+        <span className="text-[10px] font-mono tabular-nums text-white/60">
+          {Math.round(value * 100)}%
+        </span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className={`w-full ${color} cursor-pointer h-1.5`}
+      />
     </div>
   );
 }

@@ -11,6 +11,13 @@ export function PauseMenu({ onShowSettings }: { onShowSettings?: () => void }) {
   const kicks = useGameStore((s) => s.kicks);
   const target = useGameStore((s) => s.target);
   const minimap = useGameStore((s) => s.minimap);
+  const detectionsThisLevel = useGameStore((s) => s.detectionsThisLevel);
+  const damageThisLevel = useGameStore((s) => s.damageThisLevel);
+  const comboMax = useGameStore((s) => s.comboMax);
+  const enrageSurvivalsThisLevel = useGameStore((s) => s.enrageSurvivalsThisLevel);
+  const hp = useGameStore((s) => s.hp);
+  const bossHP = minimap?.bossHP ?? 0;
+  const bossMaxHP = minimap?.bossMaxHP ?? 0;
 
   if (!paused) return null;
 
@@ -25,20 +32,69 @@ export function PauseMenu({ onShowSettings }: { onShowSettings?: () => void }) {
         <h2 className="text-3xl font-black mb-1">游戏暂停</h2>
         <p className="text-white/50 text-sm mb-5">按 ESC 或点击下方按钮继续</p>
 
-        <div className="grid grid-cols-3 gap-2 mb-5 text-sm">
-          <div className="bg-white/5 rounded-lg p-2">
+        <div className="grid grid-cols-3 gap-2 mb-4 text-sm">
+          <div className="bg-white/5 rounded-lg p-2 border border-white/5">
             <div className="text-white/50 text-[10px] uppercase">关卡</div>
-            <div className="text-lg font-bold">{level}</div>
+            <div className="text-lg font-bold text-amber-300">{level}</div>
           </div>
-          <div className="bg-white/5 rounded-lg p-2">
+          <div className="bg-white/5 rounded-lg p-2 border border-white/5">
             <div className="text-white/50 text-[10px] uppercase">踹击</div>
             <div className="text-lg font-bold">
               {kicks}<span className="text-white/40 text-xs">/{target}</span>
             </div>
           </div>
-          <div className="bg-white/5 rounded-lg p-2">
+          <div className="bg-white/5 rounded-lg p-2 border border-white/5">
             <div className="text-white/50 text-[10px] uppercase">用时</div>
             <div className="text-lg font-bold tabular-nums">{timeStr}</div>
+          </div>
+        </div>
+
+        {/* Run stats panel (NEW) */}
+        <div className="bg-black/30 rounded-xl p-3 mb-5 border border-white/5">
+          <div className="text-[10px] uppercase tracking-wider text-amber-300/70 mb-2">
+            本关战况
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 text-xs">
+            <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+              <span className="text-white/60">❤️ 剩余血量</span>
+              <span className={`font-bold ${hp === 3 ? "text-emerald-300" : hp === 1 ? "text-red-300" : "text-amber-300"}`}>
+                {hp}/3
+              </span>
+            </div>
+            <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+              <span className="text-white/60">👁️ 被发现</span>
+              <span className={`font-bold ${detectionsThisLevel === 0 ? "text-emerald-300" : "text-red-300"}`}>
+                {detectionsThisLevel}
+              </span>
+            </div>
+            <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+              <span className="text-white/60">💥 扣血</span>
+              <span className={`font-bold ${damageThisLevel === 0 ? "text-emerald-300" : "text-red-300"}`}>
+                {damageThisLevel}
+              </span>
+            </div>
+            <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+              <span className="text-white/60">🔥 最高连击</span>
+              <span className="font-bold text-orange-300">
+                {comboMax}
+              </span>
+            </div>
+            {bossMaxHP > 1 && (
+              <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+                <span className="text-white/60">😡 老板体力</span>
+                <span className="font-bold text-red-300">
+                  {bossHP}/{bossMaxHP}
+                </span>
+              </div>
+            )}
+            {enrageSurvivalsThisLevel > 0 && (
+              <div className="flex items-center justify-between bg-white/5 rounded px-2 py-1">
+                <span className="text-white/60">🌋 暴怒存活</span>
+                <span className="font-bold text-purple-300">
+                  {enrageSurvivalsThisLevel}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 

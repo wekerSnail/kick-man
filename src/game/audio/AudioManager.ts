@@ -1,11 +1,24 @@
 // WebAudio synthesized SFX — no asset files needed.
 // Lightweight, procedural sound effects for game events.
+// Supports 3 independent volume channels: SFX, music, ambient.
+
+export type AudioChannel = "sfx" | "music" | "ambient";
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  // per-channel gain nodes (SFX, music, ambient)
+  private sfxGain: GainNode | null = null;
+  private musicGain: GainNode | null = null;
+  private ambientGain: GainNode | null = null;
   enabled = true;
   private volume = 0.35;
+  // per-channel volume (0..1), multiplied with master
+  private channelVolume: Record<AudioChannel, number> = {
+    sfx: 1,
+    music: 0.6,
+    ambient: 0.5,
+  };
   private bgGain: GainNode | null = null;
   private bgNodes: { osc: OscillatorNode; lfo: OscillatorNode } | null = null;
   // variant-specific ambient loop nodes (coffee/headphones)
@@ -24,6 +37,16 @@ export class AudioManager {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = this.volume;
       this.masterGain.connect(this.ctx.destination);
+      // create channel gains
+      this.sfxGain = this.ctx.createGain();
+      this.sfxGain.gain.value = this.channelVolume.sfx;
+      this.sfxGain.connect(this.masterGain);
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.value = this.channelVolume.music;
+      this.musicGain.connect(this.masterGain);
+      this.ambientGain = this.ctx.createGain();
+      this.ambientGain.gain.value = this.channelVolume.ambient;
+      this.ambientGain.connect(this.masterGain);
     }
     if (this.ctx.state === "suspended") void this.ctx.resume();
     return this.ctx;
@@ -44,15 +67,35 @@ export class AudioManager {
     return this.volume;
   }
 
+  // per-channel volume control (0..1)
+  setChannelVolume(channel: AudioChannel, v: number) {
+    this.channelVolume[channel] = Math.max(0, Math.min(1, v));
+    const gain = this.getGainForChannel(channel);
+    if (gain) gain.gain.value = this.channelVolume[channel];
+  }
+
+  getChannelVolume(channel: AudioChannel): number {
+    return this.channelVolume[channel];
+  }
+
+  private getGainForChannel(channel: AudioChannel): GainNode | null {
+    if (channel === "sfx") return this.sfxGain;
+    if (channel === "music") return this.musicGain;
+    if (channel === "ambient") return this.ambientGain;
+    return null;
+  }
+
   private blip(
     freq: number,
     dur: number,
     type: OscillatorType = "square",
     vol = 0.5,
-    freqEnd?: number
+    freqEnd?: number,
+    channel: AudioChannel = "sfx"
   ) {
     const ctx = this.ensure();
-    if (!ctx || !this.masterGain || !this.enabled) return;
+    const gain = this.getGainForChannel(channel);
+    if (!ctx || !gain || !this.enabled) return;
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
     osc.type = type;
@@ -67,14 +110,15 @@ export class AudioManager {
     g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.005);
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     osc.connect(g);
-    g.connect(this.masterGain);
+    g.connect(gain);
     osc.start();
     osc.stop(ctx.currentTime + dur + 0.02);
   }
 
-  private noise(dur: number, vol = 0.4, filterFreq = 1000) {
+  private noise(dur: number, vol = 0.4, filterFreq = 1000, channel: AudioChannel = "sfx") {
     const ctx = this.ensure();
-    if (!ctx || !this.masterGain || !this.enabled) return;
+    const gain = this.getGainForChannel(channel);
+    if (!ctx || !gain || !this.enabled) return;
     const bufferSize = Math.floor(ctx.sampleRate * dur);
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -89,7 +133,7 @@ export class AudioManager {
     g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
     src.connect(filter);
     filter.connect(g);
-    g.connect(this.masterGain);
+    g.connect(gain);
     src.start();
     src.stop(ctx.currentTime + dur);
   }
@@ -226,7 +270,7 @@ export class AudioManager {
 
     const vg = ctx.createGain();
     vg.gain.value = 0;
-    vg.connect(this.masterGain);
+    vg.connect(this.ambientGain);
     this.variantGain = vg;
 
     if (variant === "coffee") {
@@ -319,10 +363,10 @@ export class AudioManager {
 
   startBgMusic() {
     const ctx = this.ensure();
-    if (!ctx || !this.masterGain || this.bgNodes) return;
+    if (!ctx || !this.musicGain || this.bgNodes) return;
     const bgGain = ctx.createGain();
     bgGain.gain.value = 0.06;
-    bgGain.connect(this.masterGain);
+    bgGain.connect(this.musicGain);
     this.bgGain = bgGain;
     // ambient pad
     const osc = ctx.createOscillator();

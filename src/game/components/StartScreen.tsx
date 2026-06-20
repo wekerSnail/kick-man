@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LEVELS, WEAPONS, CONSUMABLES } from "../constants";
 import { useGameStore } from "../store";
+import { ACHIEVEMENT_COUNT } from "../achievements";
 
 const VARIANT_FOR_LEVEL = (level: number): string => {
   if (level >= 7) return "😡";
@@ -12,7 +13,7 @@ const VARIANT_FOR_LEVEL = (level: number): string => {
   return "👨‍💼";
 };
 
-export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSettings }: { onStart: () => void; onSelectLevel?: (level: number) => void; onShowGallery?: () => void; onShowSettings?: () => void }) {
+export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSettings, onShowKeyboardHelp }: { onStart: () => void; onSelectLevel?: (level: number) => void; onShowGallery?: () => void; onShowSettings?: () => void; onShowKeyboardHelp?: () => void }) {
   const [showHelp, setShowHelp] = useState(false);
   const [showLevelSelect, setShowLevelSelect] = useState(false);
   const stars = useGameStore((s) => s.stars);
@@ -78,7 +79,7 @@ export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSetti
               <div className="text-left">
                 <div className="text-[10px] uppercase tracking-wider text-white/50 leading-none">成就</div>
                 <div className="text-lg font-bold tabular-nums leading-tight">
-                  {achievementCount}<span className="text-white/40 text-xs">/13</span>
+                  {achievementCount}<span className="text-white/40 text-xs">/{ACHIEVEMENT_COUNT}</span>
                 </div>
               </div>
             </div>
@@ -129,6 +130,12 @@ export function StartScreen({ onStart, onSelectLevel, onShowGallery, onShowSetti
             className="text-white/60 hover:text-white text-sm underline underline-offset-4 font-medium"
           >
             ⚙️ 设置
+          </button>
+          <button
+            onClick={() => onShowKeyboardHelp?.()}
+            className="text-white/60 hover:text-white text-sm underline underline-offset-4 font-medium"
+          >
+            ⌨️ 快捷键
           </button>
         </div>
 

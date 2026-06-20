@@ -53,6 +53,9 @@ export interface VariantTutorial {
 // Persistent user settings (saved to localStorage)
 export interface UserSettings {
   volume: number; // 0..1 master volume
+  sfxVolume: number; // 0..1 SFX channel
+  musicVolume: number; // 0..1 music channel
+  ambientVolume: number; // 0..1 ambient channel
   visionCone: boolean; // show boss vision cone on ground
   minimap: boolean; // show minimap
   detectionArrow: boolean; // show directional arrow to boss when alert
@@ -61,6 +64,9 @@ export interface UserSettings {
 
 const DEFAULT_SETTINGS: UserSettings = {
   volume: 0.35,
+  sfxVolume: 1,
+  musicVolume: 0.6,
+  ambientVolume: 0.5,
   visionCone: true,
   minimap: true,
   detectionArrow: true,
@@ -165,6 +171,11 @@ interface GameState {
   incCombo: () => void;
   resetRunStats: () => void;
 
+  // level event log (timeline of boss state changes + key events this level)
+  levelEvents: { time: number; type: string; label: string; icon: string }[];
+  pushLevelEvent: (type: string, label: string, icon: string) => void;
+  clearLevelEvents: () => void;
+
   // achievements
   achievements: Record<string, boolean>; // id -> unlocked
   unlockAchievement: (id: string, name: string) => void;
@@ -188,12 +199,28 @@ interface GameState {
   addKicksTotal: (n: number) => void;
   setMaxLevelReached: (n: number) => void;
 
+  // variant tracking for variant_master achievement (persisted)
+  defeatedVariants: Record<string, boolean>; // variant id -> defeated at least once
+  markVariantDefeated: (v: string) => void;
+
+  // enrage survival counter (per run, resets on level start)
+  enrageSurvivalsThisLevel: number;
+  incEnrageSurvival: () => void;
+  resetEnrageSurvival: () => void;
+
   // variant tutorial popup (transient)
   variantTutorial: VariantTutorial | null;
   showVariantTutorial: (v: VariantTutorial) => void;
   dismissVariantTutorial: () => void;
   seenVariants: Record<string, boolean>; // persisted: which variants player has seen tutorial for
   markVariantSeen: (v: string) => void;
+
+  // level 1 first-time tutorial (basic operations)
+  showLevel1Tutorial: boolean; // transient: should show now
+  seenLevel1Tutorial: boolean; // persisted
+  triggerLevel1Tutorial: () => void;
+  dismissLevel1Tutorial: () => void;
+  markLevel1TutorialSeen: () => void;
 
   // user settings (persisted)
   settings: UserSettings;
@@ -220,6 +247,8 @@ interface PersistedProgress {
   maxLevelReached: number;
   seenVariants: Record<string, boolean>;
   settings: UserSettings;
+  defeatedVariants: Record<string, boolean>;
+  seenLevel1Tutorial: boolean;
 }
 
 function loadProgress(): Partial<PersistedProgress> {
@@ -437,7 +466,21 @@ export const useGameStore = create<GameState>((set, get) => ({
       damageThisLevel: 0,
       comboMax: 0,
       currentCombo: 0,
+      levelEvents: [],
     }),
+
+  // level event log
+  levelEvents: [],
+  pushLevelEvent: (type, label, icon) =>
+    set((st) => {
+      // use levelTime from minimap if available, else fall back to events length
+      const time = st.minimap?.levelTime ?? 0;
+      const next = {
+        levelEvents: [...st.levelEvents, { time, type, label, icon }].slice(-30),
+      };
+      return next;
+    }),
+  clearLevelEvents: () => set({ levelEvents: [] }),
 
   achievements: getPersisted().achievements || {},
   unlockAchievement: (id, name) =>
@@ -483,6 +526,22 @@ export const useGameStore = create<GameState>((set, get) => ({
       return next;
     }),
 
+  // variant tracking
+  defeatedVariants: getPersisted().defeatedVariants || {},
+  markVariantDefeated: (v) =>
+    set((st) => {
+      if (st.defeatedVariants[v]) return {};
+      const next = { defeatedVariants: { ...st.defeatedVariants, [v]: true } };
+      persistFromStore({ ...st, ...next });
+      return next;
+    }),
+
+  // enrage survival counter (per-level)
+  enrageSurvivalsThisLevel: 0,
+  incEnrageSurvival: () =>
+    set((st) => ({ enrageSurvivalsThisLevel: st.enrageSurvivalsThisLevel + 1 })),
+  resetEnrageSurvival: () => set({ enrageSurvivalsThisLevel: 0 }),
+
   // variant tutorial popup
   variantTutorial: null,
   showVariantTutorial: (v) => set({ variantTutorial: v }),
@@ -492,6 +551,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((st) => {
       if (st.seenVariants[v]) return {};
       const next = { seenVariants: { ...st.seenVariants, [v]: true } };
+      persistFromStore({ ...st, ...next });
+      return next;
+    }),
+
+  // level 1 first-time tutorial
+  showLevel1Tutorial: false,
+  seenLevel1Tutorial: getPersisted().seenLevel1Tutorial || false,
+  triggerLevel1Tutorial: () => set({ showLevel1Tutorial: true }),
+  dismissLevel1Tutorial: () => set({ showLevel1Tutorial: false }),
+  markLevel1TutorialSeen: () =>
+    set((st) => {
+      if (st.seenLevel1Tutorial) return {};
+      const next = { seenLevel1Tutorial: true };
       persistFromStore({ ...st, ...next });
       return next;
     }),
@@ -520,6 +592,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       totalKicks: 0,
       maxLevelReached: 1,
       seenVariants: {},
+      defeatedVariants: {},
+      seenLevel1Tutorial: false,
+      showLevel1Tutorial: false,
       settings: { ...DEFAULT_SETTINGS },
     });
   },
@@ -539,6 +614,8 @@ const ACHIEVEMENT_ICONS: Record<string, string> = {
   level7: "👑",
   surviver: "💼",
   kicker_100: "💯",
+  variant_master: "🎯",
+  enrage_survivor: "🌋",
 };
 
 
@@ -561,5 +638,7 @@ function persistFromStore(state: GameState) {
     maxLevelReached: state.maxLevelReached,
     seenVariants: state.seenVariants,
     settings: state.settings,
+    defeatedVariants: state.defeatedVariants,
+    seenLevel1Tutorial: state.seenLevel1Tutorial,
   });
 }

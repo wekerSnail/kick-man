@@ -183,6 +183,20 @@ export class Boss {
   private noiseImmune = false;
   // accessories group (rebuildable)
   private accessories: THREE.Group = new THREE.Group();
+  // facial feature references (for state-based expressions)
+  private eyeL?: THREE.Mesh;
+  private eyeR?: THREE.Mesh;
+  private mouth?: THREE.Mesh;
+  private browL?: THREE.Mesh;
+  private browR?: THREE.Mesh;
+  // blink animation timer (eyes briefly close)
+  private blinkTimer = 2 + Math.random() * 3; // seconds until next blink
+  private blinkProgress = 0; // 0..1 (1 = fully closed), 0 = no blink
+  // mouth animation (talking / expressions)
+  private mouthAnimPhase = 0;
+  // base scales set by updateFacialExpression (blink/mouth anim multiply on top)
+  private eyeBaseScaleY = 1;
+  private mouthBaseScaleY = 1;
   // suspicion meter (0..1) — rises with nearby kicks, decays over time
   suspicion = 0;
   private suspicionDecayPerSec = 0.08;
@@ -455,24 +469,35 @@ export class Boss {
     const hair = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.18, 0.46), hairMat);
     hair.position.y = 2.18;
     this.head.add(hair);
-    // eyes
-    const eyeMat = this.mat(0x111111, { emissive: 0x222222 });
+    // eyes (white base + dark pupil) — references kept for state-based expression changes
+    const eyeWhiteMat = this.mat(0xffffff);
+    const eyePupilMat = this.mat(0x111111, { emissive: 0x222222 });
     for (const sx of [-0.1, 0.1]) {
-      const eye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.02), eyeMat);
-      eye.position.set(sx, 1.98, 0.22);
-      this.head.add(eye);
+      // white sclera
+      const sclera = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.015), eyeWhiteMat);
+      sclera.position.set(sx, 1.98, 0.215);
+      this.head.add(sclera);
+      // pupil (we keep this reference for animation)
+      const pupil = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.012), eyePupilMat);
+      pupil.position.set(sx, 1.98, 0.225);
+      this.head.add(pupil);
+      if (sx < 0) this.eyeL = pupil;
+      else this.eyeR = pupil;
     }
-    // glasses
-    const glassesMat = this.mat(0x111111);
+    // eyebrows (references kept for animation)
+    const browMat = this.mat(0x3a2a1a);
     for (const sx of [-0.1, 0.1]) {
-      const lens = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.02), glassesMat);
-      lens.position.set(sx, 1.98, 0.22);
-      this.head.add(lens);
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.025, 0.015), browMat);
+      brow.position.set(sx, 2.06, 0.22);
+      this.head.add(brow);
+      if (sx < 0) this.browL = brow;
+      else this.browR = brow;
     }
-    // mouth (frown)
+    // mouth (references kept for animation)
     const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.02), this.mat(0x6a3a2a));
     mouth.position.set(0, 1.82, 0.22);
     this.head.add(mouth);
+    this.mouth = mouth;
     this.head.position.y = 0;
     this.bodyGroup.add(this.head);
 
@@ -820,6 +845,165 @@ export class Boss {
     } else if (s === "Patrol") {
       // warning icon handled in phase
     }
+    // update facial expression for new state
+    this.updateFacialExpression(s);
+  }
+
+  // Update boss facial expression based on state.
+  // Eyes/mouth/brows change shape & color to convey emotion.
+  private updateFacialExpression(state: BossStateName) {
+    if (!this.eyeL || !this.eyeR || !this.mouth || !this.browL || !this.browR) return;
+    // default shapes
+    let eyeScale = new THREE.Vector3(1, 1, 1);
+    let eyeColor = 0x111111;
+    let mouthScale = new THREE.Vector3(1, 1, 1);
+    let mouthColor = 0x6a3a2a;
+    let browRotL = 0;
+    let browRotR = 0;
+    let browY = 2.06;
+
+    switch (state) {
+      case "Normal":
+        // neutral, half-closed eyes (relaxed)
+        eyeScale = new THREE.Vector3(1, 0.6, 1);
+        mouthScale = new THREE.Vector3(1, 1, 1);
+        browY = 2.07;
+        break;
+      case "PhoneFlashing":
+        // wide eyes, small "o" mouth (surprised)
+        eyeScale = new THREE.Vector3(1.1, 1.3, 1);
+        eyeColor = 0x222222;
+        mouthScale = new THREE.Vector3(0.4, 1.5, 1);
+        mouthColor = 0x4a2a1a;
+        browY = 2.1;
+        break;
+      case "LookingBack":
+        // narrowed suspicious eyes (squinting), mouth slight frown
+        eyeScale = new THREE.Vector3(1.2, 0.4, 1);
+        mouthScale = new THREE.Vector3(1.2, 1, 1);
+        mouthColor = 0x5a2a1a;
+        browRotL = -0.3; // inner down (suspicious)
+        browRotR = 0.3;
+        browY = 2.04;
+        break;
+      case "Attacked":
+        // angry eyes, open mouth (shouting)
+        eyeScale = new THREE.Vector3(1, 1.2, 1);
+        eyeColor = 0xaa1111; // red angry eyes
+        mouthScale = new THREE.Vector3(0.6, 2, 1);
+        mouthColor = 0x3a1a0a;
+        browRotL = 0.4; // inner down (angry)
+        browRotR = -0.4;
+        browY = 2.02;
+        break;
+      case "Meeting":
+        // focused eyes, neutral mouth
+        eyeScale = new THREE.Vector3(0.9, 1, 1);
+        mouthScale = new THREE.Vector3(0.8, 1, 1);
+        browY = 2.05;
+        break;
+      case "Patrol":
+        // alert eyes, slight frown
+        eyeScale = new THREE.Vector3(1.1, 0.9, 1);
+        eyeColor = 0x331111;
+        mouthScale = new THREE.Vector3(1.1, 1, 1);
+        mouthColor = 0x5a2a1a;
+        browRotL = -0.15;
+        browRotR = 0.15;
+        browY = 2.05;
+        break;
+      case "Stunned":
+        // X eyes (dizzy), wavy mouth
+        eyeScale = new THREE.Vector3(1, 1, 1);
+        eyeColor = 0x6644aa; // purple dizzy
+        mouthScale = new THREE.Vector3(1.3, 0.5, 1);
+        mouthColor = 0x4a2a3a;
+        browRotL = 0.3;
+        browRotR = -0.3;
+        browY = 2.08;
+        break;
+      case "Distracted":
+        // confused eyes, tilted
+        eyeScale = new THREE.Vector3(0.9, 1.1, 1);
+        eyeColor = 0x222266;
+        mouthScale = new THREE.Vector3(0.7, 0.8, 1);
+        browRotL = 0.2;
+        browRotR = 0.2;
+        browY = 2.08;
+        break;
+    }
+
+    this.eyeL.scale.copy(eyeScale);
+    this.eyeR.scale.copy(eyeScale);
+    this.eyeBaseScaleY = eyeScale.y;
+    (this.eyeL.material as THREE.MeshStandardMaterial).color.setHex(eyeColor);
+    (this.eyeR.material as THREE.MeshStandardMaterial).color.setHex(eyeColor);
+    if (state === "Stunned") {
+      // emissive purple for X eyes effect
+      (this.eyeL.material as THREE.MeshStandardMaterial).emissive.setHex(0x331166);
+      (this.eyeR.material as THREE.MeshStandardMaterial).emissive.setHex(0x331166);
+    } else if (state === "Attacked") {
+      (this.eyeL.material as THREE.MeshStandardMaterial).emissive.setHex(0x660000);
+      (this.eyeR.material as THREE.MeshStandardMaterial).emissive.setHex(0x660000);
+    } else {
+      (this.eyeL.material as THREE.MeshStandardMaterial).emissive.setHex(0x222222);
+      (this.eyeR.material as THREE.MeshStandardMaterial).emissive.setHex(0x222222);
+    }
+    this.mouth.scale.copy(mouthScale);
+    this.mouthBaseScaleY = mouthScale.y;
+    (this.mouth.material as THREE.MeshStandardMaterial).color.setHex(mouthColor);
+    this.browL.rotation.z = browRotL;
+    this.browR.rotation.z = browRotR;
+    this.browL.position.y = browY;
+    this.browR.position.y = browY;
+  }
+
+  // Apply blink animation on top of the base eye scale.
+  // Blink briefly squashes eye Y scale to 0.1.
+  private applyBlinkToEyes() {
+    if (!this.eyeL || !this.eyeR) return;
+    // skip blink visual for Stunned (X eyes) — they look "closed" already
+    if (this.state === "Stunned") return;
+    let blinkFactor = 1;
+    if (this.blinkProgress > 0) {
+      // blinkProgress 0→0.4 close, 0.4→0.6 hold, 0.6→1 open
+      const p = this.blinkProgress;
+      if (p < 0.4) blinkFactor = 1 - (p / 0.4) * 0.9; // 1 → 0.1
+      else if (p < 0.6) blinkFactor = 0.1; // hold closed
+      else blinkFactor = 0.1 + ((p - 0.6) / 0.4) * 0.9; // 0.1 → 1
+    }
+    this.eyeL.scale.y = this.eyeBaseScaleY * blinkFactor;
+    this.eyeR.scale.y = this.eyeBaseScaleY * blinkFactor;
+  }
+
+  // Apply mouth animation on top of base mouth scale.
+  // PhoneFlashing: talking (open/close rhythmically ~5Hz)
+  // Attacked: shouting (wide open, slight pulsing)
+  // Meeting: occasional muttering (slow small open)
+  private applyMouthAnim(dt: number) {
+    if (!this.mouth) return;
+    let mouthY = this.mouthBaseScaleY;
+    let mouthX = 1;
+    if (this.state === "PhoneFlashing") {
+      // talking: rapid open/close
+      const talk = Math.abs(Math.sin(this.mouthAnimPhase * 18));
+      mouthY = this.mouthBaseScaleY * (1 + talk * 2.5);
+      mouthX = 0.7 + talk * 0.3;
+    } else if (this.state === "Attacked") {
+      // shouting: held open with slight pulse
+      const pulse = Math.sin(this.mouthAnimPhase * 12) * 0.15;
+      mouthY = this.mouthBaseScaleY * (1 + pulse);
+    } else if (this.state === "Meeting") {
+      // muttering: slow small mouth movement
+      const mutter = Math.abs(Math.sin(this.mouthAnimPhase * 4));
+      mouthY = this.mouthBaseScaleY * (1 + mutter * 0.5);
+    } else if (this.state === "Patrol") {
+      // breathing through mouth: slow subtle
+      const breath = Math.sin(this.mouthAnimPhase * 2);
+      mouthY = this.mouthBaseScaleY * (1 + breath * 0.1);
+    }
+    this.mouth.scale.y = mouthY;
+    this.mouth.scale.x = mouthX;
   }
 
   private setStatusEmoji(emoji: string) {
@@ -1020,6 +1204,26 @@ export class Boss {
 
     // sway (idle)
     this.swayPhase += dt;
+
+    // blink animation: random intervals, brief close
+    this.blinkTimer -= dt;
+    if (this.blinkTimer <= 0 && this.blinkProgress === 0) {
+      this.blinkProgress = 0.001; // start blink
+    }
+    if (this.blinkProgress > 0) {
+      // blink lasts ~150ms: 60ms close, 30ms hold, 60ms open
+      this.blinkProgress += dt / 0.15;
+      if (this.blinkProgress >= 1) {
+        this.blinkProgress = 0;
+        this.blinkTimer = 2 + Math.random() * 4; // next blink in 2-6s
+      }
+    }
+    // apply blink to eyes (scales Y down)
+    this.applyBlinkToEyes();
+
+    // mouth animation (talking during PhoneFlashing, shouting during Attacked)
+    this.mouthAnimPhase += dt;
+    this.applyMouthAnim(dt);
 
     // state logic
     switch (this.state) {
@@ -1617,5 +1821,14 @@ export class Boss {
     this.visionHalfCircle.visible = false;
     this.visionPatrolCone.visible = false;
     this.setState("Normal");
+    // ensure facial expression matches initial state
+    this.updateFacialExpression("Normal");
+    // reset enrage state for rage variant
+    this.enraged = false;
+    this.enrageTimer = this.variant === "rage" ? 12 : 0;
+    // reset blink/mouth anim
+    this.blinkTimer = 2 + Math.random() * 3;
+    this.blinkProgress = 0;
+    this.mouthAnimPhase = 0;
   }
 }

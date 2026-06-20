@@ -20,6 +20,8 @@ import { EventBanner } from "./EventBanner";
 import { TutorialHint } from "./TutorialHint";
 import { DetectionArrow } from "./DetectionArrow";
 import { SettingsMenu } from "./SettingsMenu";
+import { Level1Tutorial } from "./Level1Tutorial";
+import { KeyboardHelp } from "./KeyboardHelp";
 
 export default function Game() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,8 +29,20 @@ export default function Game() {
   const [ready, setReady] = useState(false);
   const [showGallery, setShowGallery] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const screen = useGameStore((s) => s.screen);
   const settings = useGameStore((s) => s.settings);
+
+  // '?' key toggles keyboard help overlay
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        setShowKeyboardHelp((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -70,6 +84,7 @@ export default function Game() {
           }}
           onShowGallery={() => setShowGallery(true)}
           onShowSettings={() => setShowSettings(true)}
+          onShowKeyboardHelp={() => setShowKeyboardHelp(true)}
         />
       )}
       {ready && screen === "level-transition" && (
@@ -98,11 +113,17 @@ export default function Game() {
       {/* Tutorial hint popup (boss variant first encounter) */}
       {ready && <TutorialHint />}
 
+      {/* Level 1 first-time operations tutorial */}
+      {ready && <Level1Tutorial />}
+
       {/* Gallery (achievements + items) overlay */}
       {ready && showGallery && <Gallery onClose={() => setShowGallery(false)} />}
 
       {/* Settings menu overlay */}
       {ready && showSettings && <SettingsMenu onClose={() => setShowSettings(false)} />}
+
+      {/* Keyboard shortcuts help overlay */}
+      {ready && showKeyboardHelp && <KeyboardHelp onClose={() => setShowKeyboardHelp(false)} />}
 
       {/* Achievement unlock toasts (always available) */}
       {ready && <AchievementToast />}

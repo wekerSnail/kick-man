@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useGameStore } from "../store";
 import { LEVELS } from "../constants";
 
@@ -15,6 +16,8 @@ export function LevelTransition({
   const lastResult = useGameStore((s) => s.lastLevelResult);
   const stars = useGameStore((s) => s.stars);
   const bestTimes = useGameStore((s) => s.bestTimes);
+  const levelEvents = useGameStore((s) => s.levelEvents);
+  const [showTimeline, setShowTimeline] = useState(false);
   const isLast = level >= LEVELS.length;
 
   const earnedStars = lastResult?.stars ?? 1;
@@ -90,11 +93,71 @@ export function LevelTransition({
         )}
 
         {/* Rating message */}
-        <div className="mb-5 text-sm font-semibold relative">
+        <div className="mb-3 text-sm font-semibold relative">
           {earnedStars === 3 && <span className="text-amber-300">🏆 完美通关！零伤害零发现</span>}
           {earnedStars === 2 && <span className="text-emerald-300">👍 不错！再努力一点就完美了</span>}
           {earnedStars === 1 && <span className="text-white/70">✅ 通关！尝试不被发现获取更高评分</span>}
         </div>
+
+        {/* Event timeline (collapsible) */}
+        {levelEvents.length > 0 && (
+          <div className="mb-4 relative">
+            <button
+              onClick={() => setShowTimeline((v) => !v)}
+              className="w-full flex items-center justify-between bg-white/5 hover:bg-white/10 rounded-xl px-3 py-2 border border-white/10 transition-colors text-xs"
+            >
+              <span className="flex items-center gap-2 text-white/80">
+                <span>📋</span>
+                <span>本关事件回放 ({levelEvents.length})</span>
+              </span>
+              <span className="text-white/40">{showTimeline ? "▲ 收起" : "▼ 展开"}</span>
+            </button>
+            {showTimeline && (
+              <div className="mt-2 bg-black/40 rounded-xl p-3 border border-white/5 max-h-48 overflow-y-auto">
+                <div className="relative">
+                  {/* vertical line */}
+                  <div className="absolute left-3 top-1 bottom-1 w-px bg-white/15" />
+                  <div className="space-y-1.5">
+                    {levelEvents.map((ev, i) => {
+                      const timeStr = `${Math.floor(ev.time / 60)}:${String(Math.floor(ev.time % 60)).padStart(2, "0")}`;
+                      const isDanger = ev.type === "detected" || ev.type === "Attacked" || ev.type === "Patrol";
+                      const isWarn = ev.type === "LookingBack" || ev.type === "PhoneFlashing";
+                      return (
+                        <div key={i} className="flex items-start gap-2 relative">
+                          <div
+                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] shrink-0 z-10 border-2 ${
+                              isDanger
+                                ? "bg-red-900/60 border-red-500/50"
+                                : isWarn
+                                ? "bg-amber-900/60 border-amber-500/50"
+                                : "bg-slate-700/60 border-white/20"
+                            }`}
+                          >
+                            {ev.icon}
+                          </div>
+                          <div className="flex-1 min-w-0 pt-0.5">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-[10px] font-mono tabular-nums text-white/40">
+                                {timeStr}
+                              </span>
+                              <span
+                                className={`text-[11px] ${
+                                  isDanger ? "text-red-300" : isWarn ? "text-amber-300" : "text-white/80"
+                                }`}
+                              >
+                                {ev.label}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {!isLast ? (
           <>

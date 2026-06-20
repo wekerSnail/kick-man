@@ -2,6 +2,7 @@
 
 import { useGameStore } from "../store";
 import { LEVELS } from "../constants";
+import { ACHIEVEMENT_COUNT } from "../achievements";
 
 export function VictoryScreen({
   onRestart,
@@ -14,13 +15,15 @@ export function VictoryScreen({
   const achievements = useGameStore((s) => s.achievements);
   const totalKicks = useGameStore((s) => s.totalKicks);
   const bestTimes = useGameStore((s) => s.bestTimes);
+  const defeatedVariants = useGameStore((s) => s.defeatedVariants);
 
   const totalStars = Object.values(stars).reduce((a, b) => a + b, 0);
   const maxStars = LEVELS.length * 3;
   const achievementCount = Object.values(achievements).filter(Boolean).length;
-  const maxAchievements = 13;
+  const maxAchievements = ACHIEVEMENT_COUNT;
   const totalBestTime = Object.values(bestTimes).reduce((a, b) => a + b, 0);
   const totalBestStr = `${Math.floor(totalBestTime / 60)}:${String(Math.floor(totalBestTime % 60)).padStart(2, "0")}`;
+  const defeatedVariantsCount = Object.values(defeatedVariants).filter(Boolean).length;
 
   // Compute rating based on stars + achievements
   const ratingPct = (totalStars / maxStars) * 0.6 + (achievementCount / maxAchievements) * 0.4;
@@ -102,6 +105,8 @@ export function VictoryScreen({
             <StatCard icon="🏆" label="成就解锁" value={`${achievementCount} / ${maxAchievements}`} highlight={achievementCount === maxAchievements} />
             <StatCard icon="🦵" label="累计踹击" value={`${totalKicks}`} />
             <StatCard icon="⏱️" label="总最佳用时" value={totalBestStr} />
+            <StatCard icon="🎯" label="击败变体" value={`${defeatedVariantsCount} / 5`} highlight={defeatedVariantsCount === 5} />
+            <StatCard icon="📅" label="到达关卡" value={`${LEVELS.length} / ${LEVELS.length}`} highlight />
           </div>
         </div>
 
